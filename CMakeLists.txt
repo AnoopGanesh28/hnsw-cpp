@@ -34,7 +34,8 @@ endif()
 add_library(hnsw STATIC
   src/io.cpp
   src/distance.cpp
-  src/brute_force.cpp)
+  src/brute_force.cpp
+  src/hnsw.cpp)
 target_include_directories(hnsw PUBLIC include)
 
 enable_testing()
@@ -50,3 +51,9 @@ hnsw_add_test(test_distance)
 hnsw_add_test(test_io)
 hnsw_add_test(test_brute_force)
 hnsw_add_test(test_recall)
+hnsw_add_test(test_hnsw_invariants)
+hnsw_add_test(test_hnsw_recall)
+hnsw_add_test(test_hnsw_connectivity)
+hnsw_add_test(test_hnsw_heuristic)
+hnsw_add_test(test_hnsw_edge_cases)
+hnsw_add_test(test_hnsw_determinism)
