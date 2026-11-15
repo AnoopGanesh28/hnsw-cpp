@@ -1,0 +1,17 @@
+build*/
+cmake-build-*/
+.cache/
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+# datasets and indexes: never commit
+bench/data/
+*.fvecs
+*.ivecs
+*.bvecs
+*.idx
+*.hnsw
+*.tar.gz
