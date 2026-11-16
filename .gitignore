@@ -15,3 +15,5 @@ bench/data/
 *.idx
 *.hnsw
 *.tar.gz
+bench/third_party/
+bench/results_scratch/

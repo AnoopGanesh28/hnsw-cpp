@@ -20,6 +20,8 @@ set(HNSW_SANITIZE "off" CACHE STRING
 set_property(CACHE HNSW_SANITIZE PROPERTY STRINGS
              off address undefined "address,undefined" thread)
 
+option(HNSW_BUILD_BENCH "Build the benchmark tools in bench/ (run bench/get_hnswlib.sh first)" OFF)
+
 option(HNSW_OPT_EPOCH_VISITED "Epoch-tagged visited list in SearchScratch" ON)
 option(HNSW_OPT_ALLOC_FREE_HEAPS "Fixed-capacity search heaps in SearchScratch" ON)
 option(HNSW_OPT_PREFETCH "Software prefetch in the neighbor-expansion loop" ON)
@@ -36,6 +38,7 @@ add_compile_options(-Wall -Wextra)
 #   <random> float generation that feeds those hashes.
 # Explicit intrinsics (the AVX2 kernel) are unaffected either way.
 set(HNSW_STRICT_FP -ffp-contract=off)
+set(HNSW_AVX2_FILE_OPTIONS -mavx2 -mfma)
 if(HNSW_NATIVE)
   add_compile_options(-march=native)
 endif()
@@ -64,7 +67,7 @@ add_library(hnsw STATIC
   src/batch.cpp)
 # The AVX2 kernel gets its ISA flags per file, so the library builds (and
 # dispatches at run time) without -march=native.
-set_source_files_properties(src/distance_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
+set_source_files_properties(src/distance_avx2.cpp PROPERTIES COMPILE_OPTIONS "${HNSW_AVX2_FILE_OPTIONS}")
 set_source_files_properties(src/distance.cpp PROPERTIES COMPILE_OPTIONS "${HNSW_STRICT_FP}")
 target_include_directories(hnsw PUBLIC include)
 target_compile_definitions(hnsw PUBLIC
@@ -105,3 +108,7 @@ hnsw_add_test(test_thread_pool)
 hnsw_add_test(test_batch)
 hnsw_add_test(test_concurrent_search)
 target_compile_options(test_golden PRIVATE ${HNSW_STRICT_FP})
+
+if(HNSW_BUILD_BENCH)
+  add_subdirectory(bench)
+endif()
