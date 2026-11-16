@@ -1,0 +1,287 @@
+{
+  "tool": "bench_loadtime",
+  "environment": {
+    "date_utc": "2026-11-16T20:30:13Z",
+    "cpu": {
+      "model": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+      "logical_cpus": 8,
+      "physical_cores": 4,
+      "sockets": 1,
+      "hardware_concurrency": 8
+    },
+    "mem_total_kib": 8040064,
+    "kernel": {
+      "sysname": "Linux",
+      "release": "6.18.33.1-microsoft-standard-WSL2",
+      "version": "#1 SMP PREEMPT_DYNAMIC Fri Jun  5 01:12:21 UTC 2026",
+      "machine": "x86_64"
+    },
+    "wsl": {
+      "detected": true,
+      "proc_version": "Linux version 6.18.33.1-microsoft-standard-WSL2 (root@5e53d226653e) (gcc (GCC) 13.2.0, GNU ld (GNU Binutils) 2.41) #1 SMP PREEMPT_DYNAMIC Fri Jun  5 01:12:21 UTC 2026",
+      "WSL_DISTRO_NAME": "Ubuntu"
+    },
+    "lscpu_head": [
+      "Architecture:                            x86_64",
+      "CPU op-mode(s):                          32-bit, 64-bit",
+      "Address sizes:                           39 bits physical, 48 bits virtual",
+      "Byte Order:                              Little Endian",
+      "CPU(s):                                  8",
+      "On-line CPU(s) list:                     0-7",
+      "Vendor ID:                               GenuineIntel",
+      "Model name:                              Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+      "CPU family:                              6",
+      "Model:                                   165",
+      "Thread(s) per core:                      2",
+      "Core(s) per socket:                      4",
+      "Socket(s):                               1",
+      "Stepping:                                2",
+      "BogoMIPS:                                4992.01",
+      "Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow ept vpid ept_ad fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves vnmi md_clear flush_l1d arch_capabilities",
+      "Virtualization:                          VT-x",
+      "Hypervisor vendor:                       Microsoft",
+      "Virtualization type:                     full",
+      "L1d cache:                               128 KiB (4 instances)"
+    ],
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "env_manual": {
+      "path": "/home/anoop/hnsw-cpp/bench/results/env_manual.txt",
+      "text": "ac_power=yes\nwindows_power_mode=best_performance\nsleep=never_while_plugged_in\nother_apps_closed=yes\n"
+    },
+    "compiler": {
+      "path": "/usr/bin/c++",
+      "id": "GNU",
+      "version": "15.2.0",
+      "__VERSION__": "15.2.0",
+      "gxx_version_line": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "clangxx_version_line": "Ubuntu clang version 21.1.8 (6ubuntu1)"
+    },
+    "build": {
+      "build_type": "Release",
+      "cxx_flags": "-O3 -DNDEBUG -std=c++17 -Wall -Wextra -march=native",
+      "per_file_options": {
+        "src/distance_avx2.cpp": "-mavx2 -mfma",
+        "src/distance.cpp": "-ffp-contract=off"
+      },
+      "sanitize": "off",
+      "predefined_macros": {
+        "__OPTIMIZE__": true,
+        "NDEBUG": true,
+        "__AVX2__": true,
+        "__FMA__": true,
+        "__AVX512F__": false
+      },
+      "release_build": true
+    },
+    "source": {
+      "commit": "b00ca421748cf5c16efc31da0c4426f3039c8963",
+      "describe": "m4-final-6-gb00ca42",
+      "dirty": false,
+      "note": "git state of the source tree when this binary was built"
+    },
+    "ours": {
+      "cpu_supports_avx2_fma": true,
+      "l2_function": "l2_squared_avx2 (AVX2+FMA)",
+      "HNSW_OPT_EPOCH_VISITED": true,
+      "HNSW_OPT_ALLOC_FREE_HEAPS": true,
+      "HNSW_OPT_PREFETCH": true
+    },
+    "hnswlib": {
+      "header_macros": {
+        "USE_SSE": true,
+        "USE_AVX": true,
+        "USE_AVX512": false
+      },
+      "runtime_checks": {
+        "AVXCapable": true
+      },
+      "dim": 128,
+      "l2_function": "L2SqrSIMD16ExtAVX",
+      "simd16_kernel": "L2SqrSIMD16ExtAVX",
+      "avx_path_active": true,
+      "tag_pinned": "v0.9.0",
+      "commit_pinned": "d9b3608c83d83b46c96e25088cb1d729b29dcfe9",
+      "commit_at_build": "d9b3608c83d83b46c96e25088cb1d729b29dcfe9"
+    }
+  },
+  "dataset": {
+    "name": "sift1m",
+    "queries": {
+      "path": "/home/anoop/hnsw-cpp/bench/data/sift/sift_query.fvecs",
+      "bytes": 5160000,
+      "sha256": "f7fc9be140accdfd64116c2fa2365ecdb69b8f084970c6b0532db5ff79ac8fdc",
+      "in_manifest": true
+    }
+  },
+  "config": {
+    "strategies": [
+      "ours-mmap-shallow",
+      "ours-mmap-deep",
+      "ours-read-shallow",
+      "ours-read-deep",
+      "hnswlib-load"
+    ],
+    "reps": 5,
+    "first_queries": 1000,
+    "ef": 100,
+    "k": 10,
+    "page_cache": "warm (one untimed load per strategy first)",
+    "pre_load_command": null
+  },
+  "results": [
+    {
+      "strategy": "ours-mmap-shallow",
+      "index": "/home/anoop/hnsw-cpp/bench/data/index/ours.hnsw",
+      "bytes": 717532052,
+      "load_seconds": {
+        "raw": [
+          3.3200000000000001e-05,
+          3.2400000000000001e-05,
+          3.3599999999999997e-05,
+          3.1900000000000003e-05,
+          3.2400000000000001e-05
+        ],
+        "median": 3.2400000000000001e-05,
+        "min": 3.1900000000000003e-05,
+        "max": 3.3599999999999997e-05
+      },
+      "first_queries_seconds": {
+        "raw": [
+          0.2051704,
+          0.21032619999999999,
+          0.20793969900000001,
+          0.20424519999999999,
+          0.20471990000000001
+        ],
+        "median": 0.2051704,
+        "min": 0.20424519999999999,
+        "max": 0.21032619999999999
+      }
+    },
+    {
+      "strategy": "ours-mmap-deep",
+      "index": "/home/anoop/hnsw-cpp/bench/data/index/ours.hnsw",
+      "bytes": 717532052,
+      "load_seconds": {
+        "raw": [
+          0.076485099000000001,
+          0.077371800000000004,
+          0.084885100000000005,
+          0.075642299999999996,
+          0.075291800000000006
+        ],
+        "median": 0.076485099000000001,
+        "min": 0.075291800000000006,
+        "max": 0.084885100000000005
+      },
+      "first_queries_seconds": {
+        "raw": [
+          0.22217700000000001,
+          0.206567999,
+          0.20700159900000001,
+          0.20830399999999999,
+          0.2163919
+        ],
+        "median": 0.20830399999999999,
+        "min": 0.206567999,
+        "max": 0.22217700000000001
+      }
+    },
+    {
+      "strategy": "ours-read-shallow",
+      "index": "/home/anoop/hnsw-cpp/bench/data/index/ours.hnsw",
+      "bytes": 717532052,
+      "load_seconds": {
+        "raw": [
+          0.251703599,
+          0.24569759899999999,
+          0.28191609899999998,
+          0.2475897,
+          0.25983669999999998
+        ],
+        "median": 0.251703599,
+        "min": 0.24569759899999999,
+        "max": 0.28191609899999998
+      },
+      "first_queries_seconds": {
+        "raw": [
+          0.25737489899999999,
+          0.26735969900000001,
+          0.25313119899999997,
+          0.2585614,
+          0.26846059999999999
+        ],
+        "median": 0.2585614,
+        "min": 0.25313119899999997,
+        "max": 0.26846059999999999
+      }
+    },
+    {
+      "strategy": "ours-read-deep",
+      "index": "/home/anoop/hnsw-cpp/bench/data/index/ours.hnsw",
+      "bytes": 717532052,
+      "load_seconds": {
+        "raw": [
+          0.32709099899999999,
+          0.33385029900000002,
+          0.32609459899999999,
+          0.40544279999999999,
+          0.32706489999999999
+        ],
+        "median": 0.32709099899999999,
+        "min": 0.32609459899999999,
+        "max": 0.40544279999999999
+      },
+      "first_queries_seconds": {
+        "raw": [
+          0.268488899,
+          0.25258519899999998,
+          0.2566176,
+          0.26713419999999999,
+          0.28632350000000001
+        ],
+        "median": 0.26713419999999999,
+        "min": 0.25258519899999998,
+        "max": 0.28632350000000001
+      }
+    },
+    {
+      "strategy": "hnswlib-load",
+      "index": "/home/anoop/hnsw-cpp/bench/data/index/hnswlib.idx",
+      "bytes": 660565344,
+      "load_seconds": {
+        "raw": [
+          0.65886229799999996,
+          0.67126119799999995,
+          0.70508119800000002,
+          0.8679635,
+          0.66878269999999995
+        ],
+        "median": 0.67126119799999995,
+        "min": 0.65886229799999996,
+        "max": 0.8679635
+      },
+      "first_queries_seconds": {
+        "raw": [
+          0.24812719999999999,
+          0.26271929999999999,
+          0.26145550000000001,
+          0.25010379999999999,
+          0.25121070000000001
+        ],
+        "median": 0.25121070000000001,
+        "min": 0.24812719999999999,
+        "max": 0.26271929999999999
+      }
+    }
+  ]
+}

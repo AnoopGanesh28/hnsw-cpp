@@ -1,0 +1,256 @@
+{
+  "tool": "bench_gt verify",
+  "environment": {
+    "date_utc": "2026-11-16T19:04:47Z",
+    "cpu": {
+      "model": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+      "logical_cpus": 8,
+      "physical_cores": 4,
+      "sockets": 1,
+      "hardware_concurrency": 8
+    },
+    "mem_total_kib": 8040064,
+    "kernel": {
+      "sysname": "Linux",
+      "release": "6.18.33.1-microsoft-standard-WSL2",
+      "version": "#1 SMP PREEMPT_DYNAMIC Fri Jun  5 01:12:21 UTC 2026",
+      "machine": "x86_64"
+    },
+    "wsl": {
+      "detected": true,
+      "proc_version": "Linux version 6.18.33.1-microsoft-standard-WSL2 (root@5e53d226653e) (gcc (GCC) 13.2.0, GNU ld (GNU Binutils) 2.41) #1 SMP PREEMPT_DYNAMIC Fri Jun  5 01:12:21 UTC 2026",
+      "WSL_DISTRO_NAME": "Ubuntu"
+    },
+    "lscpu_head": [
+      "Architecture:                            x86_64",
+      "CPU op-mode(s):                          32-bit, 64-bit",
+      "Address sizes:                           39 bits physical, 48 bits virtual",
+      "Byte Order:                              Little Endian",
+      "CPU(s):                                  8",
+      "On-line CPU(s) list:                     0-7",
+      "Vendor ID:                               GenuineIntel",
+      "Model name:                              Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+      "CPU family:                              6",
+      "Model:                                   165",
+      "Thread(s) per core:                      2",
+      "Core(s) per socket:                      4",
+      "Socket(s):                               1",
+      "Stepping:                                2",
+      "BogoMIPS:                                4992.01",
+      "Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow ept vpid ept_ad fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves vnmi md_clear flush_l1d arch_capabilities",
+      "Virtualization:                          VT-x",
+      "Hypervisor vendor:                       Microsoft",
+      "Virtualization type:                     full",
+      "L1d cache:                               128 KiB (4 instances)"
+    ],
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "env_manual": {
+      "path": "/home/anoop/hnsw-cpp/bench/results/env_manual.txt",
+      "text": "ac_power=yes\nwindows_power_mode=best_performance\nsleep=never_while_plugged_in\nother_apps_closed=yes\n"
+    },
+    "compiler": {
+      "path": "/usr/bin/c++",
+      "id": "GNU",
+      "version": "15.2.0",
+      "__VERSION__": "15.2.0",
+      "gxx_version_line": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "clangxx_version_line": "Ubuntu clang version 21.1.8 (6ubuntu1)"
+    },
+    "build": {
+      "build_type": "Release",
+      "cxx_flags": "-O3 -DNDEBUG -std=c++17 -Wall -Wextra -march=native",
+      "per_file_options": {
+        "src/distance_avx2.cpp": "-mavx2 -mfma",
+        "src/distance.cpp": "-ffp-contract=off"
+      },
+      "sanitize": "off",
+      "predefined_macros": {
+        "__OPTIMIZE__": true,
+        "NDEBUG": true,
+        "__AVX2__": true,
+        "__FMA__": true,
+        "__AVX512F__": false
+      },
+      "release_build": true
+    },
+    "source": {
+      "commit": "b00ca421748cf5c16efc31da0c4426f3039c8963",
+      "describe": "m4-final-6-gb00ca42",
+      "dirty": false,
+      "note": "git state of the source tree when this binary was built"
+    },
+    "ours": {
+      "cpu_supports_avx2_fma": true,
+      "l2_function": "l2_squared_avx2 (AVX2+FMA)",
+      "HNSW_OPT_EPOCH_VISITED": true,
+      "HNSW_OPT_ALLOC_FREE_HEAPS": true,
+      "HNSW_OPT_PREFETCH": true
+    },
+    "hnswlib": {
+      "header_macros": {
+        "USE_SSE": true,
+        "USE_AVX": true,
+        "USE_AVX512": false
+      },
+      "runtime_checks": {
+        "AVXCapable": true
+      },
+      "dim": 128,
+      "l2_function": "L2SqrSIMD16ExtAVX",
+      "simd16_kernel": "L2SqrSIMD16ExtAVX",
+      "avx_path_active": true,
+      "tag_pinned": "v0.9.0",
+      "commit_pinned": "d9b3608c83d83b46c96e25088cb1d729b29dcfe9",
+      "commit_at_build": "d9b3608c83d83b46c96e25088cb1d729b29dcfe9"
+    }
+  },
+  "dataset": {
+    "name": "sift1m",
+    "files": [
+      {
+        "path": "/home/anoop/hnsw-cpp/bench/data/sift/sift_base.fvecs",
+        "bytes": 516000000,
+        "sha256": "21f66e2975057b5728ba56de1c825bac4f4d89d596609ae985741c6242631816",
+        "in_manifest": true
+      },
+      {
+        "path": "/home/anoop/hnsw-cpp/bench/data/sift/sift_query.fvecs",
+        "bytes": 5160000,
+        "sha256": "f7fc9be140accdfd64116c2fa2365ecdb69b8f084970c6b0532db5ff79ac8fdc",
+        "in_manifest": true
+      },
+      {
+        "path": "/home/anoop/hnsw-cpp/bench/data/sift/sift_groundtruth.ivecs",
+        "bytes": 4040000,
+        "sha256": "2b71de0a8d5a83e6a84eec3e23fb8b611d8801dd9b3a6cd62f070ab65ea65f4f",
+        "in_manifest": true
+      }
+    ]
+  },
+  "config": {
+    "sampled_queries": [
+      0,
+      100,
+      200,
+      300,
+      400,
+      500,
+      600,
+      700,
+      800,
+      900,
+      1000,
+      1100,
+      1200,
+      1300,
+      1400,
+      1500,
+      1600,
+      1700,
+      1800,
+      1900,
+      2000,
+      2100,
+      2200,
+      2300,
+      2400,
+      2500,
+      2600,
+      2700,
+      2800,
+      2900,
+      3000,
+      3100,
+      3200,
+      3300,
+      3400,
+      3500,
+      3600,
+      3700,
+      3800,
+      3900,
+      4000,
+      4100,
+      4200,
+      4300,
+      4400,
+      4500,
+      4600,
+      4700,
+      4800,
+      4900,
+      5000,
+      5100,
+      5200,
+      5300,
+      5400,
+      5500,
+      5600,
+      5700,
+      5800,
+      5900,
+      6000,
+      6100,
+      6200,
+      6300,
+      6400,
+      6500,
+      6600,
+      6700,
+      6800,
+      6900,
+      7000,
+      7100,
+      7200,
+      7300,
+      7400,
+      7500,
+      7600,
+      7700,
+      7800,
+      7900,
+      8000,
+      8100,
+      8200,
+      8300,
+      8400,
+      8500,
+      8600,
+      8700,
+      8800,
+      8900,
+      9000,
+      9100,
+      9200,
+      9300,
+      9400,
+      9500,
+      9600,
+      9700,
+      9800,
+      9900
+    ],
+    "k": 100,
+    "threads": 8,
+    "comparison": "rank-by-rank distance equality; ids may differ only where distances tie"
+  },
+  "result": {
+    "mismatched_queries": 0,
+    "mismatched_ranks": 0,
+    "gt_ids_out_of_range": 0,
+    "max_abs_distance_diff": 0.0,
+    "tie_permuted_ranks": 159,
+    "examples": [],
+    "brute_force_seconds": 3.420948997,
+    "ok": true
+  }
+}

@@ -1,0 +1,4 @@
+ac_power=yes
+windows_power_mode=best_performance
+sleep=never_while_plugged_in
+other_apps_closed=yes

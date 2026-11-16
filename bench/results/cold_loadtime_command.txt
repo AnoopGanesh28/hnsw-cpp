@@ -1,0 +1,1 @@
+HNSW_BENCH_ENV_MANUAL=/home/anoop/hnsw-cpp/bench/results/env_manual.txt bench/run_cold_loadtime.sh build-bench bench/data/index/ours.hnsw bench/data/index/hnswlib.idx bench/data/sift/sift_query.fvecs bench/results/loadtime_cold.json
