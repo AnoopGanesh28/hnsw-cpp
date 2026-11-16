@@ -34,34 +34,40 @@ static void test_reuse_matches_fresh() {
   }
 }
 
-// Drive the 16-bit epoch across its wraparound. The first pass on a fresh
-// scratch runs at epoch 1 and leaves tag 1 on every node it visited. After
-// wrapping, the epoch is 1 again, so without the clear-on-wrap those stale
-// tags would read as "visited" and the repeated query would go wrong.
+// Drive the 16-bit epoch across its wraparound. A pass on a fresh scratch
+// runs at epoch 1 and leaves tag 1 on every node it visited, the entry point
+// included. Forcing the epoch to its maximum and repeating the same query
+// wraps back to epoch 1 on exactly those tags: without the clear-on-wrap they
+// read as "visited", the entry point is skipped and the result is wrong.
 static void test_epoch_wraparound() {
   if (!kEpochVisited) return;
   const size_t n = 500, dim = 6;
   const auto base = test::uniform_data(n, dim, 4);
   const auto queries = test::uniform_data(4, dim, 5);
   const HnswIndex index = test::build(base, dim, test::params(6, 40, 6));
-  const float* q0 = queries.data();
-  const KnnResult want0 = fresh_search(index, q0, 10, 40);
-
-  SearchScratch s;
-  CHECK(same(index.search(q0, 10, 40, s), want0));
-  CHECK_EQ(s.epoch(), SearchScratch::Tag{1});
-
   const SearchScratch::Tag max = std::numeric_limits<SearchScratch::Tag>::max();
-  s.set_epoch_for_testing(static_cast<SearchScratch::Tag>(max - 2));
-  for (size_t i = 1; i < 4; ++i) {  // epochs max-1, max, then wrap -> 1
+
+  for (size_t i = 0; i < 4; ++i) {
     const float* qp = queries.data() + i * dim;
-    CHECK(same(index.search(qp, 10, 40, s), fresh_search(index, qp, 10, 40)));
+    const KnnResult want = fresh_search(index, qp, 10, 40);
+    SearchScratch s;
+    CHECK(same(index.search(qp, 10, 40, s), want));
+    CHECK_EQ(s.epoch(), SearchScratch::Tag{1});
+    s.set_epoch_for_testing(max);
+    CHECK(same(index.search(qp, 10, 40, s), want));  // wraps to epoch 1
+    CHECK_EQ(s.epoch(), SearchScratch::Tag{1});
+    CHECK(same(index.search(qp, 10, 40, s), want));  // epoch 2
   }
-  CHECK_EQ(s.epoch(), SearchScratch::Tag{1});
-  CHECK(same(index.search(q0, 10, 40, s), want0));  // epoch 2, after the clear
-  s.set_epoch_for_testing(max);
-  CHECK(same(index.search(q0, 10, 40, s), want0));  // wraps to 1: stale tags from epoch 1
-  CHECK_EQ(s.epoch(), SearchScratch::Tag{1});
+
+  // Consecutive passes straddling the wrap with different queries.
+  SearchScratch s;
+  s.set_epoch_for_testing(static_cast<SearchScratch::Tag>(max - 2));
+  for (size_t round = 0; round < 2; ++round) {
+    for (size_t i = 0; i < 4; ++i) {
+      const float* qp = queries.data() + i * dim;
+      CHECK(same(index.search(qp, 10, 40, s), fresh_search(index, qp, 10, 40)));
+    }
+  }
 }
 
 // A scratch used on a small index grows when used on a larger one, and an
