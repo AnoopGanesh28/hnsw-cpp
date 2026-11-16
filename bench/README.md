@@ -62,6 +62,13 @@ file, and each one's header comment lists every flag.
 | `bench_search` | Sweeps recall@k against QPS over `--efs` and `--threads` for both systems (method below). |
 | `bench_loadtime` | Load time and the time to answer the first `--first` queries for five strategies: ours mmap / read, each with shallow / deep validation, and hnswlib `loadIndex`. |
 | `run_cold_loadtime.sh` | `bench_loadtime` with `sync; echo 3 \| sudo tee /proc/sys/vm/drop_caches` before every load. It needs sudo, so run it yourself. |
+| `run_all.sh` | The whole M5b run, stage by stage (below). |
+| `m2_baseline/bench_m2` | The M2 scalar baseline (tag `m2-scalar-baseline`) built through its public API, for the layout ablation. Built by `m2_baseline/build.sh` against a worktree of the tag. |
+
+`bench_search --kernel scalar` (and `bench_build --kernel scalar`, ours only) uses the
+scalar reference L2 kernel instead of the fastest one. Every `bench_search` result entry
+carries `ids_hash`, a 64-bit FNV-1a hash of its result id array, so results from
+different processes and builds can be compared.
 
 Typical full-scale commands (M5b), with `B=build-bench/bench` and `D=bench/data/sift`:
 
@@ -80,6 +87,47 @@ bench/run_cold_loadtime.sh build-bench ours.hnsw hnswlib.idx $D/sift_query.fvecs
 For a dev-scale run on a prefix of the base set, pass `--n N` to `bench_build` and use
 a ground truth from `bench_gt subset --n N`. `bench_search` refuses a ground truth
 whose ids do not exist in the index.
+
+## Full run: `run_all.sh`
+
+```sh
+bench/run_all.sh                 # build, then s0 ... s7; or name stages: bench/run_all.sh s4 s5
+```
+
+The `build` stage compiles everything before anything is timed: the bench tools
+(`build-bench`), `bench_search` for all 8 combinations of `HNSW_OPT_EPOCH_VISITED`,
+`HNSW_OPT_ALLOC_FREE_HEAPS` and `HNSW_OPT_PREFETCH` (`build-abl/eXhYpZ`), a profile build
+with the release flags plus `-g` (`build-prof`), and `bench_m2` (`build-m2`, worktree at
+`~/hnsw-m2-baseline`). Timed stages refuse to start without
+`bench/results/env_manual.txt`. Every result file embeds it (`environment.env_manual`),
+via `HNSW_BENCH_ENV_MANUAL`. Each stage skips outputs that already exist, so a stopped run
+resumes. Stage wall times are appended to `bench/results/stage_times.tsv`. Index files go
+to `bench/data/index/`.
+
+| Stage | Output in `bench/results/` | What it runs |
+|---|---|---|
+| s0 | `environment.json`, `gt_verify.json` | Environment record (with `env_manual.txt`, its sha256 and the pinned CPU), ground-truth check. |
+| s1 | `build_ours.json`, `build_hnswlib.json` | `bench_build`, M=16, efC=200, 3 runs, one process per system. |
+| s2 | `sweep_t1.json`, `sweep_t4.json`, `sweep_t8.json`, `sweep_high_spread.json` | `bench_search` over 25 ef values from 10 to 800, 1 warm-up pass and 7 timed passes, ours via mmap. 1 thread pinned with `taskset -c 2`; 4 and 8 threads unpinned. Points whose (max − min) / median exceeds 15% are listed. |
+| s3 | `loadtime_warm.json`, `cold_loadtime_command.txt` | Warm-cache `bench_loadtime`. Prints the cold-cache command (needs sudo) without running it. |
+| s4 | `ablation_efs.json`, `ablation/abl_e?h?p?_{scalar,avx2}_r?.json`, `ablation_check.json` | The 16 combinations of {epoch, heaps, prefetch} × {scalar, AVX2} kernels, all on the same `ours.hnsw`, pinned, at the smallest swept ef whose ours recall@10 ≥ 0.95 and ≥ 0.99 in `sweep_t1.json`. 5 repetitions, round robin. Each process does 1 warm-up and 1 timed pass. Requires identical result ids for every combination of the same kernel. |
+| s5 | `layout/*`, `layout_check.json` | Layout ablation (below). |
+| s6 | `perf/*` | `perf record -e cpu-clock` and `perf stat` of single-thread search at the 0.95 ef, ours (full configuration, `build-prof`) and hnswlib, pinned. Saves the top 25 entries of `perf report --stdio --no-children`. If no working perf is found, saves the errors instead. |
+| s7 | `repeat_t1.json` | The two headline single-thread ef points again, both systems, 7 timed passes, for run-to-run comparison. |
+
+**Layout ablation (s5).** The memory layout is not a compile switch, so its "off" arm is
+the M2 scalar baseline (before the contiguous layout), compiled with
+`-O3 -march=native -ffp-contract=off`. Its scalar kernel then rounds like ours, so M2
+builds the same graph as ours built with `--kernel scalar`. The "on" arm is the all-off
+scalar variant searching that scalar-built index. First, M2 builds a 100k prefix. If
+that time, scaled by n log n to the full base, exceeds 90 minutes, both arms use a 200k
+prefix. The ground truth is then recomputed, the ef targets are re-picked on that subset,
+and `layout/projection.json` records the choice. `bench_m2` builds once, then runs 7
+repetitions, pinned. Each repetition is 1 warm-up and 1 timed pass per ef. Before the
+first repetition and after every repetition, it calls `lib/layout_bracket.sh`, which
+measures the all-off variant (`layout/alloff_bracket_I.json`), so each M2 repetition has
+a measurement just before and just after it. `layout_check.json` requires the M2 result
+ids to equal every bracket's.
 
 ## Method
 
@@ -129,6 +177,8 @@ tool's measurements. `environment` holds:
 - logical and physical core counts and MemTotal;
 - the kernel version, and WSL detection with its evidence;
 - the first 20 lines of `lscpu`;
+- the CPUs the process may run on (`cpu_affinity`, one CPU under `taskset -c N`);
+- the contents of `HNSW_BENCH_ENV_MANUAL` (`env_manual`), or null when it is unset;
 - the compiler used and the g++ and clang++ versions found at configure time;
 - the effective common flags, per-file flags and the predefined macros the bench
   code was compiled with (`__OPTIMIZE__`, `NDEBUG`, `__AVX2__`, `__FMA__`), plus a

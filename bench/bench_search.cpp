@@ -4,7 +4,7 @@
 //                [--ours INDEX] [--hnswlib INDEX] [--systems ours,hnswlib]
 //                [--efs 10,12,...,800] [--threads 1,4,8] [--reps 5] [--k 10]
 //                [--nq all] [--chunk 8] [--load-mode mmap|read]
-//                [--validate deep|shallow] [--dump-ids DIR]
+//                [--validate deep|shallow] [--kernel best|scalar] [--dump-ids DIR]
 //
 // Method, for each thread count T, then each ef:
 //   - hnswlib's setEf is called first (it is not thread-safe);
@@ -18,7 +18,10 @@
 // ThreadPool (created before timing), chunk queries per work item, timed from
 // submission to completion. Each pass's results must equal the warm-up's
 // (checked after timing), and recall@k is computed afterwards, by one function
-// for both systems, against the first k ground-truth ids.
+// for both systems, against the first k ground-truth ids. Each result entry
+// carries a hash of its result ids, so runs in different processes and builds
+// can be checked for identical results. --kernel scalar makes ours search
+// with the scalar reference L2 kernel instead of the fastest one (ablation).
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -122,6 +125,7 @@ int run(int argc, char** argv) {
   const size_t chunk = args.size("chunk", hnsw::kDefaultBatchChunk);
   const std::string load_mode = args.choice("load-mode", {"mmap", "read"}, "mmap");
   const std::string validate = args.choice("validate", {"deep", "shallow"}, "deep");
+  const std::string kernel = args.choice("kernel", {"best", "scalar"}, "best");
   const std::string dump_dir = args.str("dump-ids", "");
   bool use_ours = false, use_hnswlib = false;
   for (const std::string& s : systems) {
@@ -161,6 +165,7 @@ int run(int argc, char** argv) {
     hnsw::LoadOptions options;
     options.mode = load_mode == "mmap" ? hnsw::LoadMode::Mmap : hnsw::LoadMode::Read;
     options.validate_deep = validate == "deep";
+    options.dist = kernel == "scalar" ? hnsw::l2_squared_scalar : hnsw::best_l2_squared();
     const auto t0 = bench::Clock::now();
     ours.emplace(hnsw::LoadedIndex::open(ours_path, options));
     const double secs = bench::seconds_between(t0, bench::Clock::now());
@@ -171,6 +176,9 @@ int run(int argc, char** argv) {
     info.set("bytes", ours->file_size());
     info.set("load_mode", load_mode);
     info.set("validate_deep", options.validate_deep);
+    info.set("kernel", kernel == "scalar" ? "l2_squared_scalar"
+                       : hnsw::cpu_supports_avx2_fma() ? "l2_squared_avx2"
+                                                       : "l2_squared_scalar");
     info.set("load_seconds", secs);
     info.set("size", ours->size());
     info.set("M", ours->M());
@@ -282,6 +290,8 @@ int run(int argc, char** argv) {
         entry.set("seconds", bench::samples_json(times[s]));
         entry.set("qps_median", static_cast<double>(nq) / sum.median);
         entry.set("recall_at_k", recall);
+        entry.set("ids_hash",
+                  bench::fnv1a64_hex(buf[s].ids.data(), buf[s].ids.size() * sizeof(uint32_t)));
         entry.set("matches_single_thread", matches);
         entry.set("block_seconds", block_seconds);
         entry.set("pass_order", order);

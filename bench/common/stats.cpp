@@ -1,6 +1,8 @@
 #include "stats.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
 #include <stdexcept>
 
 namespace bench {
@@ -24,6 +26,18 @@ json::Value samples_json(const std::vector<double>& samples) {
   out.set("median", s.median);
   out.set("min", s.min);
   out.set("max", s.max);
+  return out;
+}
+
+std::string fnv1a64_hex(const void* data, size_t bytes) {
+  const auto* p = static_cast<const unsigned char*>(data);
+  uint64_t h = 14695981039346656037ull;
+  for (size_t i = 0; i < bytes; ++i) {
+    h ^= p[i];
+    h *= 1099511628211ull;
+  }
+  char out[17];
+  std::snprintf(out, sizeof(out), "%016llx", static_cast<unsigned long long>(h));
   return out;
 }
 

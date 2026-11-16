@@ -19,6 +19,7 @@
 #include "hnsw/io.h"
 #include "json.h"
 #include "proc.h"
+#include "stats.h"
 #include "test_helper.h"
 
 namespace fs = std::filesystem;
@@ -86,6 +87,8 @@ void check_environment(const Value& env) {
   CHECK(env.at("mem_total_kib").as_int() > 0);
   CHECK(env.at("wsl").at("detected").type() == Value::Type::Bool);
   CHECK(env.at("lscpu_head").size() > 0);
+  CHECK(env.at("cpu_affinity").size() > 0);
+  CHECK(env.at("env_manual").is_null());  // HNSW_BENCH_ENV_MANUAL is not set here
   CHECK(!env.at("compiler").at("version").as_string().empty());
   CHECK(env.at("build").at("cxx_flags").as_string().find("-std=c++17") != std::string::npos);
   CHECK(env.at("source").at("commit").as_string().size() == 40);
@@ -167,6 +170,8 @@ void check_search(const std::string& path, const std::string& ids_dir,
   CHECK(!doc.at("dataset").at("ground_truth").at("in_manifest").as_bool());
   CHECK(has_keys(doc.at("systems"), {"ours", "hnswlib"}));
   CHECK_EQ(doc.at("systems").at("ours").at("load_mode").as_string(), std::string("mmap"));
+  CHECK_EQ(doc.at("systems").at("ours").at("kernel").as_string(),
+           std::string(hnsw::cpu_supports_avx2_fma() ? "l2_squared_avx2" : "l2_squared_scalar"));
   const Value& results = doc.at("results");
   CHECK_EQ(results.size(), kSystems.size() * kEfs.size() * kThreads.size());
 
@@ -180,8 +185,8 @@ void check_search(const std::string& path, const std::string& ids_dir,
 
   for (const Value& e : results.items()) {
     CHECK(has_keys(e, {"system", "ef", "threads", "k", "queries", "warmup_seconds", "seconds",
-                       "qps_median", "recall_at_k", "matches_single_thread", "block_seconds",
-                       "pass_order"}));
+                       "qps_median", "recall_at_k", "ids_hash", "matches_single_thread",
+                       "block_seconds", "pass_order"}));
     const std::string system = e.at("system").as_string();
     const size_t ef = static_cast<size_t>(e.at("ef").as_int());
     const size_t threads = static_cast<size_t>(e.at("threads").as_int());
@@ -200,6 +205,8 @@ void check_search(const std::string& path, const std::string& ids_dir,
         system + "_ef" + std::to_string(ef) + "_t" + std::to_string(threads) + ".ivecs";
     const hnsw::IvecsData got = hnsw::read_ivecs((fs::path(ids_dir) / name).string());
     check_row_format(got, base, queries, name);
+    CHECK_EQ(e.at("ids_hash").as_string(),
+             bench::fnv1a64_hex(got.data.data(), got.data.size() * sizeof(int32_t)));
 
     // Recall recomputed independently of the harness.
     size_t hits = 0;
@@ -312,6 +319,34 @@ void smoke() {
     return;
   }
   check_loadtime(load_json);
+
+  // --kernel scalar: an index built and searched with the scalar kernel is
+  // recorded as such and still finds the true neighbors.
+  const std::string scalar_idx = tmp / "ours_scalar.hnsw";
+  if (!run("bench_build", {"--system", "ours", "--kernel", "scalar", "--data", base_file, "--n",
+                           std::to_string(kUsed), "--out", scalar_idx, "--json",
+                           tmp / "build_scalar.json"})) {
+    return;
+  }
+  CHECK_EQ(bench::json::read_file(tmp / "build_scalar.json").at("config").at("kernel").as_string(),
+           std::string("l2_squared_scalar"));
+  const std::string scalar_json = tmp / "search_scalar.json";
+  if (!run("bench_search", {"--ours", scalar_idx, "--systems", "ours", "--kernel", "scalar",
+                            "--queries", query_file, "--gt", gt_used, "--efs", "400",
+                            "--threads", "1", "--reps", "1", "--json", scalar_json})) {
+    return;
+  }
+  const Value scalar_doc = bench::json::read_file(scalar_json);
+  CHECK_EQ(scalar_doc.at("systems").at("ours").at("kernel").as_string(),
+           std::string("l2_squared_scalar"));
+  CHECK(scalar_doc.at("results").at(0).at("recall_at_k").as_double() >= 0.99);
+
+  // --kernel is refused for hnswlib.
+  CHECK(std::system((bench::shell_quote((fs::path(bin_dir) / "bench_build").string()) +
+                     " --system hnswlib --kernel scalar --data " + bench::shell_quote(base_file) +
+                     " --out " + bench::shell_quote(tmp / "x.idx") + " --json " +
+                     bench::shell_quote(tmp / "x.json") + " 2>/dev/null")
+                        .c_str()) != 0);
 
   // A ground truth that does not belong to the index is refused.
   CHECK(std::system((bench::shell_quote((fs::path(bin_dir) / "bench_search").string()) +

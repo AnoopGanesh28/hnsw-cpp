@@ -1,5 +1,6 @@
 #include "env.h"
 
+#include <sched.h>
 #include <sys/utsname.h>
 
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <ctime>
 #include <fstream>
 #include <set>
+#include <stdexcept>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -42,6 +44,36 @@ std::string read_text(const std::string& path) {
   std::ostringstream ss;
   ss << in.rdbuf();
   return ss.str();
+}
+
+// Logical CPUs this process may run on (e.g. one CPU under taskset -c N).
+json::Value cpu_affinity() {
+  cpu_set_t set;
+  CPU_ZERO(&set);
+  if (sched_getaffinity(0, sizeof(set), &set) != 0) return json::Value("unavailable");
+  json::Value cpus = json::Value::array();
+  for (int c = 0; c < CPU_SETSIZE; ++c) {
+    if (CPU_ISSET(c, &set)) cpus.push(static_cast<size_t>(c));
+  }
+  return cpus;
+}
+
+// Notes recorded by hand (bench/results/env_manual.txt), embedded verbatim
+// when HNSW_BENCH_ENV_MANUAL names the file. A name that cannot be read is an
+// error, so a run that was meant to carry the notes never silently lacks them.
+json::Value env_manual() {
+  const char* path = std::getenv("HNSW_BENCH_ENV_MANUAL");
+  if (path == nullptr || *path == '\0') return json::Value();
+  std::ifstream in(path);
+  if (!in) {
+    throw std::runtime_error(std::string("HNSW_BENCH_ENV_MANUAL: cannot read ") + path);
+  }
+  std::ostringstream ss;
+  ss << in.rdbuf();
+  json::Value out = json::Value::object();
+  out.set("path", std::string(path));
+  out.set("text", ss.str());
+  return out;
 }
 
 json::Value cpu_record() {
@@ -207,6 +239,8 @@ json::Value environment_record(size_t dim) {
   out.set("kernel", kernel_record());
   out.set("wsl", wsl_record());
   out.set("lscpu_head", lscpu_head(20));
+  out.set("cpu_affinity", cpu_affinity());
+  out.set("env_manual", env_manual());
   out.set("compiler", compiler);
   out.set("build", build);
   out.set("source", source);

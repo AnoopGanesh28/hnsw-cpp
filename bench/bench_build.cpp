@@ -3,6 +3,7 @@
 //
 //   bench_build --system ours|hnswlib --data BASE.fvecs --out INDEX --json OUT.json
 //               [--n all] [--M 16] [--efc 200] [--seed 100] [--runs 1]
+//               [--kernel best|scalar]
 //
 // Insertion is single-threaded for both systems (ours has no concurrent
 // insert). Each run builds a fresh index from the same in-memory vectors; the
@@ -11,7 +12,9 @@
 // inside). The index of the last run is saved to INDEX (HnswIndex::save /
 // hnswlib saveIndex; save time is recorded separately). VmHWM is read after
 // the dataset is loaded and at the end; the latter is the peak over the
-// whole process, i.e. dataset plus the largest of the runs.
+// whole process, i.e. dataset plus the largest of the runs. --kernel scalar
+// builds ours with the scalar reference L2 kernel, whose graph equals the
+// scalar M2 baseline's (layout ablation).
 #include <cstdio>
 #include <filesystem>
 #include <memory>
@@ -43,7 +46,13 @@ int run(int argc, char** argv) {
   const size_t efc = args.size("efc", 200);
   const size_t seed = args.size("seed", 100);
   const size_t runs = args.size("runs", 1);
+  const std::string kernel = args.choice("kernel", {"best", "scalar"}, "best");
   args.finish();
+  if (kernel != "best" && system != "ours") {
+    throw std::invalid_argument("--kernel applies to --system ours only");
+  }
+  const hnsw::DistFn dist =
+      kernel == "scalar" ? hnsw::l2_squared_scalar : hnsw::best_l2_squared();
   if (runs == 0) throw std::invalid_argument("--runs must be >= 1");
 
   const bench::Manifest manifest = bench::manifest_for(data);
@@ -63,7 +72,7 @@ int run(int argc, char** argv) {
       params.ef_construction = efc;
       params.seed = seed;
       const auto t0 = bench::Clock::now();
-      hnsw::HnswIndex index(dim, params);
+      hnsw::HnswIndex index(dim, params, dist);
       index.reserve(n);
       for (size_t i = 0; i < n; ++i) index.add(base.data.data() + i * dim);
       build_seconds.push_back(bench::seconds_between(t0, bench::Clock::now()));
@@ -97,6 +106,9 @@ int run(int argc, char** argv) {
   config.set("seed", seed);
   config.set("runs", runs);
   config.set("insertion", "single-threaded");
+  config.set("kernel", system != "ours" ? "hnswlib L2Space"
+                       : dist == hnsw::l2_squared_scalar ? "l2_squared_scalar"
+                                                         : "l2_squared_avx2");
 
   Value dataset = Value::object();
   dataset.set("name", manifest.dataset);
