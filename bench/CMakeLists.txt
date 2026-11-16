@@ -108,3 +108,10 @@ add_executable(test_bench_util ${PROJECT_SOURCE_DIR}/tests/test_bench_util.cpp)
 target_link_libraries(test_bench_util PRIVATE hnsw_bench)
 target_include_directories(test_bench_util PRIVATE ${PROJECT_SOURCE_DIR}/tests)
 add_test(NAME test_bench_util COMMAND test_bench_util)
+
+add_executable(test_bench_smoke ${PROJECT_SOURCE_DIR}/tests/test_bench_smoke.cpp)
+target_link_libraries(test_bench_smoke PRIVATE hnsw_bench)
+target_include_directories(test_bench_smoke PRIVATE ${PROJECT_SOURCE_DIR}/tests)
+add_dependencies(test_bench_smoke
+                 bench_build bench_search bench_loadtime bench_gt bench_make_synthetic)
+add_test(NAME test_bench_smoke COMMAND test_bench_smoke $<TARGET_FILE_DIR:bench_build>)
