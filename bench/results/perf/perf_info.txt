@@ -1,0 +1,6 @@
+perf: /usr/bin/perf
+perf version 7.0.14
+binary: build-prof/bench/bench_search
+pinned cpu: 2
+ef: 56 (smallest ef with ours recall@10 >= 0.95 in sweep_t1.json)
+perf_event_paranoid: 2

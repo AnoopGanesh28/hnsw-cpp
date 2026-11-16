@@ -1,0 +1,21 @@
+{
+  "source": "/home/anoop/hnsw-cpp/bench/results/sweep_t1.json",
+  "system": "ours",
+  "threads": 1,
+  "rule": "smallest swept ef whose recall_at_k >= target",
+  "points": [
+    {
+      "target": 0.95,
+      "ef": 56,
+      "recall_at_k": 0.9544699999999721
+    },
+    {
+      "target": 0.99,
+      "ef": 160,
+      "recall_at_k": 0.9931499999999914
+    }
+  ],
+  "ef_0.95": 56,
+  "ef_0.99": 160,
+  "efs_csv": "56,160"
+}

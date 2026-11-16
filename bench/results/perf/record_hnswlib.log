@@ -1,0 +1,3 @@
+bench_search: threads 1 ef 56: hnswlib 6409 qps recall 0.9546 (17.8 s)
+[ perf record: Woken up 12 times to write data ]
+[ perf record: Captured and wrote 2.759 MB bench/data/perf/hnswlib.data (72162 samples) ]

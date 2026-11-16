@@ -1,0 +1,19 @@
+# started on Mon Nov 16 21:19:42 2026
+
+
+ Performance counter stats for 'build-prof/bench/bench_search --systems hnswlib --queries bench/data/sift/sift_query.fvecs --gt bench/data/sift/sift_groundtruth.ivecs --efs 56 --threads 1 --reps 10 --hnswlib bench/data/index/hnswlib.idx --json bench/results/perf/stat_run_hnswlib.json':
+
+          17862.37 msec task-clock:u                                                          
+       71999932708      cycles:u                                                              
+       29624829963      instructions:u                                                        
+        4434398551      cache-references:u                                                    
+        3482278678      cache-misses:u                                                        
+        3225008313      branches:u                                                            
+         178548267      branch-misses:u                                                       
+
+      17.867333401 seconds time elapsed
+
+      17.375444000 seconds user
+       0.488784000 seconds sys
+
+

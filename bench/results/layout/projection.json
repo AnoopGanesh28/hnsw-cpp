@@ -1,0 +1,10 @@
+{
+  "probe_n": 100000,
+  "probe_build_seconds": 51.4240315,
+  "full_n": 1000000,
+  "model": "t_full = t_probe * (n_full / n_probe) * (ln n_full / ln n_probe)",
+  "projected_full_build_seconds": 617.088378,
+  "limit_seconds": 5400.0,
+  "subset": false,
+  "layout_n": 1000000
+}

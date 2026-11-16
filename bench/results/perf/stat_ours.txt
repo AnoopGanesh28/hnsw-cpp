@@ -1,0 +1,19 @@
+# started on Mon Nov 16 21:19:09 2026
+
+
+ Performance counter stats for 'build-prof/bench/bench_search --systems ours --queries bench/data/sift/sift_query.fvecs --gt bench/data/sift/sift_groundtruth.ivecs --efs 56 --threads 1 --reps 10 --ours bench/data/index/ours.hnsw --validate shallow --json bench/results/perf/stat_run_ours.json':
+
+          13861.30 msec task-clock:u                                                          
+       57530379557      cycles:u                                                              
+       24600158222      instructions:u                                                        
+        4202408798      cache-references:u                                                    
+        3414872450      cache-misses:u                                                        
+        3358523330      branches:u                                                            
+         169685014      branch-misses:u                                                       
+
+      13.873565825 seconds time elapsed
+
+      13.853583000 seconds user
+       0.008609000 seconds sys
+
+

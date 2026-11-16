@@ -1,0 +1,3 @@
+bench_search: threads 1 ef 56: ours 7743 qps recall 0.9545 (14.7 s)
+[ perf record: Woken up 9 times to write data ]
+[ perf record: Captured and wrote 2.238 MB bench/data/perf/ours.data (58494 samples) ]

@@ -1,0 +1,13 @@
+{
+  "tool": "bench_m2",
+  "environment": {"date_utc": "2026-11-16T21:13:42Z", "compiler": "15.2.0", "cxx_flags": "g++ -std=c++17 -O3 -march=native -ffp-contract=off -DNDEBUG -Wall -Wextra", "m2_commit": "691eba9687f9c89036658f8a17783c5bafd090d5", "cpu_affinity": [2]},
+  "config": {"base": "bench/data/sift/sift_base.fvecs", "n": 1000000, "dim": 128, "M": 16, "ef_construction": 200, "seed": 100, "kernel": "l2_squared_scalar"},
+  "build_seconds": 873.26407730200003,
+  "reps": 7,
+  "queries": 10000,
+  "results": [
+    {"system": "m2", "ef": 56, "k": 10, "threads": 1, "warmup_seconds": [3.7702607019999999, 3.503774575, 3.5945823109999999, 3.4738700159999998, 3.5415425269999998, 3.5466809600000002, 3.6320254169999999], "seconds": {"raw": [3.4089014209999999, 3.4077554729999999, 3.4005342110000001, 3.3980627179999998, 3.4291686889999999, 3.4398885610000001, 3.412914534], "median": 3.4089014209999999, "min": 3.3980627179999998, "max": 3.4398885610000001}, "qps_median": 2933.4963863714497, "recall_at_k": 0.95447000000000004, "ids_hash": "0ccf706cdc3066bd"},
+    {"system": "m2", "ef": 160, "k": 10, "threads": 1, "warmup_seconds": [8.1309773209999996, 8.2478179570000005, 8.4159228180000003, 8.0825495400000005, 8.0371517810000004, 8.3895796469999997, 8.0566995989999999], "seconds": {"raw": [7.9668879940000004, 8.2311690540000004, 9.1462757220000004, 7.9353852219999998, 8.9694457439999997, 7.9234832639999997, 9.0236663670000006], "median": 8.2311690540000004, "min": 7.9234832639999997, "max": 9.1462757220000004}, "qps_median": 1214.89425552989, "recall_at_k": 0.99314999999999998, "ids_hash": "324929a8e89b7337"}
+  ],
+  "between": "/home/anoop/hnsw-cpp/bench/lib/layout_bracket.sh 2 build-abl/e0h0p0/bench/bench_search bench/data/index/ours_scalar.hnsw bench/data/sift/sift_query.fvecs bench/data/sift/sift_groundtruth.ivecs 56,160 bench/results/layout"
+}

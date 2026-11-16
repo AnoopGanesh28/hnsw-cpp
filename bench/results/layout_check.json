@@ -1,0 +1,19 @@
+{
+  "rule": "M2 baseline result ids equal the all-off scalar variant's (FNV-1a hash)",
+  "m2_hashes": {
+    "56": "0ccf706cdc3066bd",
+    "160": "324929a8e89b7337"
+  },
+  "brackets_checked": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "ok": true,
+  "problems": []
+}

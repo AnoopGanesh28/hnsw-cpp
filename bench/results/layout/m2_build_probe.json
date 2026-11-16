@@ -1,0 +1,6 @@
+{
+  "tool": "bench_m2",
+  "environment": {"date_utc": "2026-11-16T20:48:12Z", "compiler": "15.2.0", "cxx_flags": "g++ -std=c++17 -O3 -march=native -ffp-contract=off -DNDEBUG -Wall -Wextra", "m2_commit": "691eba9687f9c89036658f8a17783c5bafd090d5", "cpu_affinity": [0, 1, 2, 3, 4, 5, 6, 7]},
+  "config": {"base": "bench/data/sift/sift_base.fvecs", "n": 100000, "dim": 128, "M": 16, "ef_construction": 200, "seed": 100, "kernel": "l2_squared_scalar"},
+  "build_seconds": 51.424031499999998
+}

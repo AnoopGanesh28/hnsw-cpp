@@ -1,0 +1,209 @@
+{
+  "tool": "bench_search",
+  "environment": {
+    "date_utc": "2026-11-16T20:36:19Z",
+    "cpu": {
+      "model": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+      "logical_cpus": 8,
+      "physical_cores": 4,
+      "sockets": 1,
+      "hardware_concurrency": 8
+    },
+    "mem_total_kib": 8040064,
+    "kernel": {
+      "sysname": "Linux",
+      "release": "6.18.33.1-microsoft-standard-WSL2",
+      "version": "#1 SMP PREEMPT_DYNAMIC Fri Jun  5 01:12:21 UTC 2026",
+      "machine": "x86_64"
+    },
+    "wsl": {
+      "detected": true,
+      "proc_version": "Linux version 6.18.33.1-microsoft-standard-WSL2 (root@5e53d226653e) (gcc (GCC) 13.2.0, GNU ld (GNU Binutils) 2.41) #1 SMP PREEMPT_DYNAMIC Fri Jun  5 01:12:21 UTC 2026",
+      "WSL_DISTRO_NAME": "Ubuntu"
+    },
+    "lscpu_head": [
+      "Architecture:                            x86_64",
+      "CPU op-mode(s):                          32-bit, 64-bit",
+      "Address sizes:                           39 bits physical, 48 bits virtual",
+      "Byte Order:                              Little Endian",
+      "CPU(s):                                  8",
+      "On-line CPU(s) list:                     0-7",
+      "Vendor ID:                               GenuineIntel",
+      "Model name:                              Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+      "CPU family:                              6",
+      "Model:                                   165",
+      "Thread(s) per core:                      2",
+      "Core(s) per socket:                      4",
+      "Socket(s):                               1",
+      "Stepping:                                2",
+      "BogoMIPS:                                4992.01",
+      "Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow ept vpid ept_ad fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves vnmi md_clear flush_l1d arch_capabilities",
+      "Virtualization:                          VT-x",
+      "Hypervisor vendor:                       Microsoft",
+      "Virtualization type:                     full",
+      "L1d cache:                               128 KiB (4 instances)"
+    ],
+    "cpu_affinity": [
+      2
+    ],
+    "env_manual": {
+      "path": "/home/anoop/hnsw-cpp/bench/results/env_manual.txt",
+      "text": "ac_power=yes\nwindows_power_mode=best_performance\nsleep=never_while_plugged_in\nother_apps_closed=yes\n"
+    },
+    "compiler": {
+      "path": "/usr/bin/c++",
+      "id": "GNU",
+      "version": "15.2.0",
+      "__VERSION__": "15.2.0",
+      "gxx_version_line": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "clangxx_version_line": "Ubuntu clang version 21.1.8 (6ubuntu1)"
+    },
+    "build": {
+      "build_type": "Release",
+      "cxx_flags": "-O3 -DNDEBUG -std=c++17 -Wall -Wextra -march=native",
+      "per_file_options": {
+        "src/distance_avx2.cpp": "-mavx2 -mfma",
+        "src/distance.cpp": "-ffp-contract=off"
+      },
+      "sanitize": "off",
+      "predefined_macros": {
+        "__OPTIMIZE__": true,
+        "NDEBUG": true,
+        "__AVX2__": true,
+        "__FMA__": true,
+        "__AVX512F__": false
+      },
+      "release_build": true
+    },
+    "source": {
+      "commit": "b00ca421748cf5c16efc31da0c4426f3039c8963",
+      "describe": "m4-final-6-gb00ca42",
+      "dirty": false,
+      "note": "git state of the source tree when this binary was built"
+    },
+    "ours": {
+      "cpu_supports_avx2_fma": true,
+      "l2_function": "l2_squared_avx2 (AVX2+FMA)",
+      "HNSW_OPT_EPOCH_VISITED": true,
+      "HNSW_OPT_ALLOC_FREE_HEAPS": true,
+      "HNSW_OPT_PREFETCH": false
+    },
+    "hnswlib": {
+      "header_macros": {
+        "USE_SSE": true,
+        "USE_AVX": true,
+        "USE_AVX512": false
+      },
+      "runtime_checks": {
+        "AVXCapable": true
+      },
+      "dim": 128,
+      "l2_function": "L2SqrSIMD16ExtAVX",
+      "simd16_kernel": "L2SqrSIMD16ExtAVX",
+      "avx_path_active": true,
+      "tag_pinned": "v0.9.0",
+      "commit_pinned": "d9b3608c83d83b46c96e25088cb1d729b29dcfe9",
+      "commit_at_build": "d9b3608c83d83b46c96e25088cb1d729b29dcfe9"
+    }
+  },
+  "dataset": {
+    "name": "sift1m",
+    "queries": {
+      "path": "/home/anoop/hnsw-cpp/bench/data/sift/sift_query.fvecs",
+      "bytes": 5160000,
+      "sha256": "f7fc9be140accdfd64116c2fa2365ecdb69b8f084970c6b0532db5ff79ac8fdc",
+      "in_manifest": true
+    },
+    "ground_truth": {
+      "path": "/home/anoop/hnsw-cpp/bench/data/sift/sift_groundtruth.ivecs",
+      "bytes": 4040000,
+      "sha256": "2b71de0a8d5a83e6a84eec3e23fb8b611d8801dd9b3a6cd62f070ab65ea65f4f",
+      "in_manifest": true
+    },
+    "index_vectors": 1000000
+  },
+  "config": {
+    "systems": [
+      "ours"
+    ],
+    "efs": [
+      56,
+      160
+    ],
+    "threads": [
+      1
+    ],
+    "reps": 1,
+    "warmup_passes": 1,
+    "k": 10,
+    "queries": 10000,
+    "chunk": 8,
+    "rep_order": "systems in --systems order on even repetitions, reversed on odd",
+    "single_thread": "plain loop on the calling thread",
+    "multi_thread": "hnsw::ThreadPool::parallel_for, same dispatch for both systems"
+  },
+  "systems": {
+    "ours": {
+      "index": "/home/anoop/hnsw-cpp/bench/data/index/ours.hnsw",
+      "bytes": 717532052,
+      "load_mode": "mmap",
+      "validate_deep": true,
+      "kernel": "l2_squared_avx2",
+      "load_seconds": 0.086926602000000006,
+      "size": 1000000,
+      "M": 16,
+      "ef_construction": 200
+    }
+  },
+  "results": [
+    {
+      "system": "ours",
+      "ef": 56,
+      "threads": 1,
+      "k": 10,
+      "queries": 10000,
+      "warmup_seconds": 1.646543938,
+      "seconds": {
+        "raw": [
+          1.660158837
+        ],
+        "median": 1.660158837,
+        "min": 1.660158837,
+        "max": 1.660158837
+      },
+      "qps_median": 6023.5200253914018,
+      "recall_at_k": 0.95446999999997206,
+      "ids_hash": "0ccf706cdc3066bd",
+      "matches_single_thread": null,
+      "block_seconds": 3.306866775,
+      "pass_order": [
+        "ours"
+      ]
+    },
+    {
+      "system": "ours",
+      "ef": 160,
+      "threads": 1,
+      "k": 10,
+      "queries": 10000,
+      "warmup_seconds": 3.9433542359999998,
+      "seconds": {
+        "raw": [
+          3.5042565130000001
+        ],
+        "median": 3.5042565130000001,
+        "min": 3.5042565130000001,
+        "max": 3.5042565130000001
+      },
+      "qps_median": 2853.6723732701244,
+      "recall_at_k": 0.99314999999999143,
+      "ids_hash": "324929a8e89b7337",
+      "matches_single_thread": null,
+      "block_seconds": 7.4477618489999999,
+      "pass_order": [
+        "ours"
+      ]
+    }
+  ],
+  "sweep_seconds": 10.762182923999999
+}

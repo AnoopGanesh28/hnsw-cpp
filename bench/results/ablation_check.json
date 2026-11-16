@@ -1,0 +1,44 @@
+{
+  "rule": "for each kernel and ef, every switch combination and repetition returns the same result ids (FNV-1a hash of the id array)",
+  "runs": 80,
+  "groups": {
+    "avx2_ef56": {
+      "identical_ids": true,
+      "hashes": [
+        "0ccf706cdc3066bd"
+      ],
+      "recall_at_k": [
+        0.9544699999999721
+      ]
+    },
+    "avx2_ef160": {
+      "identical_ids": true,
+      "hashes": [
+        "324929a8e89b7337"
+      ],
+      "recall_at_k": [
+        0.9931499999999914
+      ]
+    },
+    "scalar_ef56": {
+      "identical_ids": true,
+      "hashes": [
+        "0ccf706cdc3066bd"
+      ],
+      "recall_at_k": [
+        0.9544699999999721
+      ]
+    },
+    "scalar_ef160": {
+      "identical_ids": true,
+      "hashes": [
+        "324929a8e89b7337"
+      ],
+      "recall_at_k": [
+        0.9931499999999914
+      ]
+    }
+  },
+  "ok": true,
+  "problems": []
+}
