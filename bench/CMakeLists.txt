@@ -94,9 +94,12 @@ target_include_directories(hnsw_bench PUBLIC common PRIVATE ${_gen})
 target_include_directories(hnsw_bench SYSTEM PRIVATE ${HNSWLIB_DIR})
 target_link_libraries(hnsw_bench PUBLIC hnsw)
 
+add_executable(bench_build bench_build.cpp)
+add_executable(bench_search bench_search.cpp)
+add_executable(bench_loadtime bench_loadtime.cpp)
 add_executable(bench_gt bench_gt.cpp)
 add_executable(bench_make_synthetic make_synthetic.cpp)
-foreach(_tool bench_gt bench_make_synthetic)
+foreach(_tool bench_build bench_search bench_loadtime bench_gt bench_make_synthetic)
   target_link_libraries(${_tool} PRIVATE hnsw_bench)
 endforeach()
 

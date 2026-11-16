@@ -12,7 +12,13 @@ Work in progress. See docs/TASK.md.
 | M2: HNSW build and search (scalar, single-threaded baseline) | done |
 | M3: contiguous layout, epoch visited list, allocation-free heaps, prefetch, AVX2+FMA kernel | done |
 | M4: index file format (save, mmap/read load, validation), thread pool, batch query API | done |
-| M5 to M7 | not started |
+| M5a: benchmark infrastructure (dataset scripts, ground-truth validation, build/search/load-time harness with hnswlib baseline, tests) | done |
+| M5b: SIFT1M runs, ablation, profile, plot, results table | not started |
+| M6, M7 | not started |
+
+No benchmark results yet. The tools and the method are described in
+[bench/README.md](bench/README.md). SIFT1M downloads and validates on this machine
+(`bench/get_sift.sh`), so no synthetic substitute is needed.
 
 ### Build options (M3)
 
