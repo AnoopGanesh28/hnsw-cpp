@@ -158,7 +158,8 @@ uint32_t HnswIndex::add(const float* v) {
 
   std::vector<Cand> eps{cur};
   for (int lc = std::min(level, max_level_); lc >= 0; --lc) {
-    std::vector<Cand> w = detail::search_layer(g, dist_, q, eps, params_.ef_construction, lc);
+    std::vector<Cand> w = detail::search_layer(g, dist_, q, eps, params_.ef_construction, lc,
+                                                  insert_scratch_);
     const std::vector<uint32_t> selected = select_neighbors(w, params_.M);
     set_links(id, lc, selected);
     for (uint32_t e : selected) connect(e, id, lc);
@@ -173,7 +174,13 @@ uint32_t HnswIndex::add(const float* v) {
 }
 
 KnnResult HnswIndex::search(const float* query, size_t k, size_t ef) const {
-  return search_graph(view(), dist_, query, k, ef);
+  thread_local SearchScratch scratch;
+  return search(query, k, ef, scratch);
+}
+
+KnnResult HnswIndex::search(const float* query, size_t k, size_t ef,
+                            SearchScratch& scratch) const {
+  return search_graph(view(), dist_, query, k, ef, scratch);
 }
 
 uint32_t HnswIndex::entry_point() const {

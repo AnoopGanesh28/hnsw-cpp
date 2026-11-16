@@ -9,6 +9,7 @@
 
 #include "hnsw/distance.h"
 #include "hnsw/graph.h"
+#include "hnsw/scratch.h"
 
 namespace hnsw {
 namespace detail {
@@ -22,8 +23,11 @@ using Cand = std::pair<float, uint32_t>;
 Cand greedy_closest(const GraphView& g, DistFn dist, const float* q, Cand cur, int level);
 
 // Algorithm 2 (SEARCH-LAYER). Returns up to ef nearest found, ascending.
+// Visited marks come from `scratch` (epoch tags) or, with
+// HNSW_OPT_EPOCH_VISITED off, from a fresh per-pass byte array.
 std::vector<Cand> search_layer(const GraphView& g, DistFn dist, const float* q,
-                               const std::vector<Cand>& entry, size_t ef, int level);
+                               const std::vector<Cand>& entry, size_t ef, int level,
+                               SearchScratch& scratch);
 
 }  // namespace detail
 }  // namespace hnsw

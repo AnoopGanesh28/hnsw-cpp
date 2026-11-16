@@ -6,6 +6,7 @@
 #include "hnsw/brute_force.h"
 #include "hnsw/distance.h"
 #include "hnsw/layout.h"
+#include "hnsw/scratch.h"
 
 namespace hnsw {
 
@@ -52,6 +53,6 @@ struct GraphView {
 // Approximate k-NN search (Algorithm 5) over a graph view. Results are
 // ascending by distance, ties by lower id, at most min(k, count).
 KnnResult search_graph(const GraphView& graph, DistFn dist, const float* query,
-                       size_t k, size_t ef);
+                       size_t k, size_t ef, SearchScratch& scratch);
 
 }  // namespace hnsw

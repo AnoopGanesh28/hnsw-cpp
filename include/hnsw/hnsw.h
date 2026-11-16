@@ -12,6 +12,7 @@
 #include "hnsw/distance.h"
 #include "hnsw/graph.h"
 #include "hnsw/layout.h"
+#include "hnsw/scratch.h"
 
 namespace hnsw {
 
@@ -45,7 +46,10 @@ class HnswIndex {
   // Approximate k nearest neighbors, ascending by distance, ties by lower id.
   // Uses a candidate list of size max(ef, k). Returns at most min(k, size())
   // results; empty if the index is empty or k == 0.
+  // This overload uses a thread_local SearchScratch.
   KnnResult search(const float* query, size_t k, size_t ef) const;
+  // Same, with caller-owned scratch (one per thread).
+  KnnResult search(const float* query, size_t k, size_t ef, SearchScratch& scratch) const;
 
   size_t size() const { return levels_.size(); }
   size_t dim() const { return dim_; }
@@ -94,6 +98,7 @@ class HnswIndex {
   std::vector<uint32_t> upper_links_;
   int max_level_ = -1;
   uint32_t entry_ = 0;
+  SearchScratch insert_scratch_;
 };
 
 }  // namespace hnsw

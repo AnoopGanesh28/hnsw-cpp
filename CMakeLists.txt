@@ -16,6 +16,8 @@ set(HNSW_SANITIZE "off" CACHE STRING
 set_property(CACHE HNSW_SANITIZE PROPERTY STRINGS
              off address undefined "address,undefined")
 
+option(HNSW_OPT_EPOCH_VISITED "Epoch-tagged visited list in SearchScratch" ON)
+
 add_compile_options(-Wall -Wextra)
 # Strict IEEE evaluation of scalar code: forbids the compiler from fusing a*b+c
 # into FMA, which GCC and Clang otherwise do differently under -march=native.
@@ -44,6 +46,8 @@ add_library(hnsw STATIC
   src/search.cpp
   src/aligned_buffer.cpp)
 target_include_directories(hnsw PUBLIC include)
+target_compile_definitions(hnsw PUBLIC
+  HNSW_OPT_EPOCH_VISITED=$<BOOL:${HNSW_OPT_EPOCH_VISITED}>)
 
 enable_testing()
 
@@ -52,6 +56,8 @@ function(hnsw_add_test name)
   target_link_libraries(${name} PRIVATE hnsw)
   target_include_directories(${name} PRIVATE tests)
   add_test(NAME ${name} COMMAND ${name})
+  # Exit code 77 means "skipped" (e.g. feature disabled or unsupported CPU).
+  set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77)
 endfunction()
 
 hnsw_add_test(test_distance)
@@ -65,4 +71,5 @@ hnsw_add_test(test_hnsw_heuristic)
 hnsw_add_test(test_hnsw_edge_cases)
 hnsw_add_test(test_hnsw_determinism)
 hnsw_add_test(test_layout)
+hnsw_add_test(test_scratch)
 hnsw_add_test(test_golden)
