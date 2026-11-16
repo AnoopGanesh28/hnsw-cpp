@@ -50,6 +50,10 @@ class HnswIndex {
   KnnResult search(const float* query, size_t k, size_t ef) const;
   // Same, with caller-owned scratch (one per thread).
   KnnResult search(const float* query, size_t k, size_t ef, SearchScratch& scratch) const;
+  // Allocation-free form (see search_graph_into): writes up to min(k, size())
+  // results into out_ids / out_dists and returns how many were written.
+  size_t search_into(const float* query, size_t k, size_t ef, SearchScratch& scratch,
+                     uint32_t* out_ids, float* out_dists) const;
 
   size_t size() const { return levels_.size(); }
   size_t dim() const { return dim_; }
@@ -74,7 +78,7 @@ class HnswIndex {
   std::string check_invariants() const;
 
  private:
-  using Cand = std::pair<float, uint32_t>;  // (distance, id)
+  using Cand = Candidate;
 
   const float* vec(uint32_t id) const;
   uint32_t* link_block(uint32_t id, int level);

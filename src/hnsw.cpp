@@ -158,12 +158,12 @@ uint32_t HnswIndex::add(const float* v) {
 
   std::vector<Cand> eps{cur};
   for (int lc = std::min(level, max_level_); lc >= 0; --lc) {
-    std::vector<Cand> w = detail::search_layer(g, dist_, q, eps, params_.ef_construction, lc,
-                                                  insert_scratch_);
-    const std::vector<uint32_t> selected = select_neighbors(w, params_.M);
+    const detail::CandidateSpan found = detail::search_layer(
+        g, dist_, q, eps.data(), eps.size(), params_.ef_construction, lc, insert_scratch_);
+    eps.assign(found.data, found.data + found.size);
+    const std::vector<uint32_t> selected = select_neighbors(eps, params_.M);
     set_links(id, lc, selected);
     for (uint32_t e : selected) connect(e, id, lc);
-    eps = std::move(w);
   }
 
   if (level > max_level_) {
@@ -181,6 +181,11 @@ KnnResult HnswIndex::search(const float* query, size_t k, size_t ef) const {
 KnnResult HnswIndex::search(const float* query, size_t k, size_t ef,
                             SearchScratch& scratch) const {
   return search_graph(view(), dist_, query, k, ef, scratch);
+}
+
+size_t HnswIndex::search_into(const float* query, size_t k, size_t ef, SearchScratch& scratch,
+                              uint32_t* out_ids, float* out_dists) const {
+  return search_graph_into(view(), dist_, query, k, ef, scratch, out_ids, out_dists);
 }
 
 uint32_t HnswIndex::entry_point() const {

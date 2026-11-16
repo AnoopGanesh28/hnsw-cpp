@@ -2,15 +2,13 @@
 #include <functional>
 #include <queue>
 
+#include "fixed_heap.h"
 #include "hnsw/graph.h"
 #include "search_layer.h"
 
 namespace hnsw {
 namespace detail {
 namespace {
-
-using MaxHeap = std::priority_queue<Cand>;
-using MinHeap = std::priority_queue<Cand, std::vector<Cand>, std::greater<Cand>>;
 
 #if HNSW_OPT_EPOCH_VISITED
 // Epoch-tagged marks owned by the scratch object.
@@ -38,6 +36,44 @@ class Visited {
 };
 #endif
 
+#if HNSW_OPT_ALLOC_FREE_HEAPS
+class CandidateHeap : public FixedHeap<true> {
+ public:
+  explicit CandidateHeap(SearchScratch& s) : FixedHeap<true>(s.candidate_buffer()) {}
+};
+
+class ResultHeap : public FixedHeap<false> {
+ public:
+  explicit ResultHeap(SearchScratch& s) : FixedHeap<false>(s.result_buffer()) {}
+  // The buffer is scratch.result_buffer(); sorting it in place leaves the
+  // results ascending there.
+  void finish() { sort_in_place(); }
+};
+#else
+// Baseline: std::priority_queue, allocating per pass.
+class CandidateHeap
+    : public std::priority_queue<Cand, std::vector<Cand>, std::greater<Cand>> {
+ public:
+  explicit CandidateHeap(SearchScratch&) {}
+};
+
+class ResultHeap : public std::priority_queue<Cand> {
+ public:
+  explicit ResultHeap(SearchScratch& s) : out_(s.result_buffer()) {}
+  // Moves the results, ascending, into scratch.result_buffer().
+  void finish() {
+    out_.resize(size());
+    for (size_t i = out_.size(); i-- > 0;) {
+      out_[i] = top();
+      pop();
+    }
+  }
+
+ private:
+  std::vector<Cand>& out_;
+};
+#endif
+
 }  // namespace
 
 Cand greedy_closest(const GraphView& g, DistFn dist, const float* q, Cand cur, int level) {
@@ -56,14 +92,16 @@ Cand greedy_closest(const GraphView& g, DistFn dist, const float* q, Cand cur, i
   return cur;
 }
 
-std::vector<Cand> search_layer(const GraphView& g, DistFn dist, const float* q,
-                               const std::vector<Cand>& entry, size_t ef, int level,
-                               SearchScratch& scratch) {
+CandidateSpan search_layer(const GraphView& g, DistFn dist, const float* q,
+                           const Cand* entry, size_t num_entry, size_t ef, int level,
+                           SearchScratch& scratch) {
   const size_t dim = g.layout.dim;
+  scratch.reserve_heaps(g.count, ef);
   Visited visited(scratch, g.count);
-  MinHeap candidates;
-  MaxHeap found;
-  for (const Cand& e : entry) {
+  CandidateHeap candidates(scratch);
+  ResultHeap found(scratch);
+  for (size_t i = 0; i < num_entry; ++i) {
+    const Cand& e = entry[i];
     if (visited.test_and_set(e.second)) continue;
     candidates.push(e);
     found.push(e);
@@ -83,33 +121,42 @@ std::vector<Cand> search_layer(const GraphView& g, DistFn dist, const float* q,
       }
     }
   }
-  std::vector<Cand> out(found.size());
-  for (size_t i = out.size(); i-- > 0;) {
-    out[i] = found.top();
-    found.pop();
-  }
-  return out;
+  found.finish();
+  const std::vector<Cand>& out = scratch.result_buffer();
+  return {out.data(), out.size()};
 }
 
 }  // namespace detail
 
-KnnResult search_graph(const GraphView& g, DistFn dist, const float* query,
-                       size_t k, size_t ef, SearchScratch& scratch) {
+size_t search_graph_into(const GraphView& g, DistFn dist, const float* query, size_t k,
+                         size_t ef, SearchScratch& scratch, uint32_t* out_ids,
+                         float* out_dists) {
   using detail::Cand;
-  KnnResult result;
-  if (g.count == 0 || k == 0) return result;
+  if (g.count == 0 || k == 0) return 0;
 
   Cand cur{dist(query, g.vector(g.entry_point), g.layout.dim), g.entry_point};
   for (int lc = g.max_level; lc > 0; --lc) cur = detail::greedy_closest(g, dist, query, cur, lc);
-  const std::vector<Cand> w = detail::search_layer(g, dist, query, {cur}, std::max(ef, k), 0, scratch);
+  const detail::CandidateSpan w =
+      detail::search_layer(g, dist, query, &cur, 1, std::max(ef, k), 0, scratch);
 
-  const size_t take = std::min(k, w.size());
-  result.ids.reserve(take);
-  result.dists.reserve(take);
+  const size_t take = std::min(k, w.size);
   for (size_t i = 0; i < take; ++i) {
-    result.dists.push_back(w[i].first);
-    result.ids.push_back(w[i].second);
+    out_dists[i] = w.data[i].first;
+    out_ids[i] = w.data[i].second;
   }
+  return take;
+}
+
+KnnResult search_graph(const GraphView& g, DistFn dist, const float* query, size_t k,
+                       size_t ef, SearchScratch& scratch) {
+  KnnResult result;
+  const size_t cap = std::min(k, g.count);
+  result.ids.resize(cap);
+  result.dists.resize(cap);
+  const size_t got = search_graph_into(g, dist, query, k, ef, scratch, result.ids.data(),
+                                       result.dists.data());
+  result.ids.resize(got);
+  result.dists.resize(got);
   return result;
 }
 

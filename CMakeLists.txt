@@ -17,6 +17,7 @@ set_property(CACHE HNSW_SANITIZE PROPERTY STRINGS
              off address undefined "address,undefined")
 
 option(HNSW_OPT_EPOCH_VISITED "Epoch-tagged visited list in SearchScratch" ON)
+option(HNSW_OPT_ALLOC_FREE_HEAPS "Fixed-capacity search heaps in SearchScratch" ON)
 
 add_compile_options(-Wall -Wextra)
 # Strict IEEE evaluation of scalar code: forbids the compiler from fusing a*b+c
@@ -47,7 +48,8 @@ add_library(hnsw STATIC
   src/aligned_buffer.cpp)
 target_include_directories(hnsw PUBLIC include)
 target_compile_definitions(hnsw PUBLIC
-  HNSW_OPT_EPOCH_VISITED=$<BOOL:${HNSW_OPT_EPOCH_VISITED}>)
+  HNSW_OPT_EPOCH_VISITED=$<BOOL:${HNSW_OPT_EPOCH_VISITED}>
+  HNSW_OPT_ALLOC_FREE_HEAPS=$<BOOL:${HNSW_OPT_ALLOC_FREE_HEAPS}>)
 
 enable_testing()
 
@@ -72,4 +74,5 @@ hnsw_add_test(test_hnsw_edge_cases)
 hnsw_add_test(test_hnsw_determinism)
 hnsw_add_test(test_layout)
 hnsw_add_test(test_scratch)
+hnsw_add_test(test_alloc_free)
 hnsw_add_test(test_golden)

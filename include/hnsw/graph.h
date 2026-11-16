@@ -55,4 +55,12 @@ struct GraphView {
 KnnResult search_graph(const GraphView& graph, DistFn dist, const float* query,
                        size_t k, size_t ef, SearchScratch& scratch);
 
+// Same, writing into caller arrays of at least min(k, count) elements;
+// returns the number of results. Performs no allocation once `scratch` has
+// served a pass with this graph size and ef (when HNSW_OPT_EPOCH_VISITED and
+// HNSW_OPT_ALLOC_FREE_HEAPS are on).
+size_t search_graph_into(const GraphView& graph, DistFn dist, const float* query,
+                         size_t k, size_t ef, SearchScratch& scratch, uint32_t* out_ids,
+                         float* out_dists);
+
 }  // namespace hnsw
