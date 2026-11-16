@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(hnsw LANGUAGES CXX)
 
+if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+  message(FATAL_ERROR "hnsw targets x86-64 (got ${CMAKE_SYSTEM_PROCESSOR})")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -46,7 +50,11 @@ add_library(hnsw STATIC
   src/brute_force.cpp
   src/hnsw.cpp
   src/search.cpp
-  src/aligned_buffer.cpp)
+  src/aligned_buffer.cpp
+  src/distance_avx2.cpp)
+# The AVX2 kernel gets its ISA flags per file, so the library builds (and
+# dispatches at run time) without -march=native.
+set_source_files_properties(src/distance_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
 target_include_directories(hnsw PUBLIC include)
 target_compile_definitions(hnsw PUBLIC
   HNSW_OPT_EPOCH_VISITED=$<BOOL:${HNSW_OPT_EPOCH_VISITED}>
@@ -77,4 +85,6 @@ hnsw_add_test(test_hnsw_determinism)
 hnsw_add_test(test_layout)
 hnsw_add_test(test_scratch)
 hnsw_add_test(test_alloc_free)
+hnsw_add_test(test_distance_avx2)
+hnsw_add_test(test_hnsw_avx2)
 hnsw_add_test(test_golden)

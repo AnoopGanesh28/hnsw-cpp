@@ -34,8 +34,8 @@ struct HnswParams {
 class HnswIndex {
  public:
   // Throws std::invalid_argument if dim < 1, M < 2, ef_construction < 1, or
-  // dist is null.
-  HnswIndex(size_t dim, HnswParams params = {}, DistFn dist = l2_squared_scalar);
+  // dist is null. The default kernel is the fastest one for this CPU.
+  HnswIndex(size_t dim, HnswParams params = {}, DistFn dist = best_l2_squared());
 
   // Preallocates storage for n elements in total.
   void reserve(size_t n);

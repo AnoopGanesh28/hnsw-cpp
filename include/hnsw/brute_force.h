@@ -19,17 +19,18 @@ struct KnnResult {
 
 // Exact kNN of `query` among n row-major vectors of dimension dim in `base`.
 // Returns min(k, n) neighbors. Throws std::invalid_argument if n does not fit
-// in a uint32_t id.
+// in a uint32_t id. The default kernel matches HnswIndex's default, so
+// distances from both are directly comparable.
 KnnResult brute_force_knn(const float* base, size_t n, size_t dim,
                           const float* query, size_t k,
-                          DistFn dist = l2_squared_scalar);
+                          DistFn dist = best_l2_squared());
 
 // Same as brute_force_knn for nq row-major queries; result[i] belongs to
 // query i. Single-threaded.
 std::vector<KnnResult> brute_force_knn_batch(const float* base, size_t n,
                                              size_t dim, const float* queries,
                                              size_t nq, size_t k,
-                                             DistFn dist = l2_squared_scalar);
+                                             DistFn dist = best_l2_squared());
 
 // recall@k = |found ∩ truth| / k, using the first k entries of each list
 // (fewer if a list is shorter). Duplicate ids in `found` count once. The
