@@ -1,9 +1,11 @@
 // ThreadPool: coverage of every item exactly once, dynamic chunking, real
-// concurrency, exception propagation, reuse, and clean shutdown. Also run
+// concurrency, exception propagation, reuse, per-thread scratches on separate
+// cache lines, and clean shutdown. Also run
 // under ThreadSanitizer (HNSW_SANITIZE=thread).
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -135,6 +137,30 @@ static void test_concurrent_callers() {
   CHECK_EQ(wrong.load(), 0);
 }
 
+// Each thread's scratch object occupies cache lines no other scratch touches:
+// it starts on a line boundary, and the lines spanned by its bytes are
+// disjoint from every other scratch's.
+static void test_scratch_on_own_cache_lines() {
+  constexpr uintptr_t line = ThreadPool::kCacheLine;
+  for (size_t threads : {1u, 2u, 3u, 8u}) {
+    ThreadPool pool(threads);
+    bool aligned = true, disjoint = true;
+    for (size_t i = 0; i < threads; ++i) {
+      const auto a = reinterpret_cast<uintptr_t>(&pool.scratch(i));
+      aligned = aligned && a % line == 0;
+      const uintptr_t a_first = a / line, a_last = (a + sizeof(hnsw::SearchScratch) - 1) / line;
+      for (size_t j = 0; j < threads; ++j) {
+        if (j == i) continue;
+        const auto b = reinterpret_cast<uintptr_t>(&pool.scratch(j));
+        const uintptr_t b_first = b / line, b_last = (b + sizeof(hnsw::SearchScratch) - 1) / line;
+        disjoint = disjoint && (a_last < b_first || b_last < a_first);
+      }
+    }
+    CHECK(aligned);
+    CHECK(disjoint);
+  }
+}
+
 static void test_clean_destruction() {
   for (int i = 0; i < 50; ++i) {
     ThreadPool idle(1 + i % 9);  // destroyed without ever running work
@@ -155,6 +181,7 @@ int main() {
   test_exception_propagates_and_pool_survives();
   test_reuse_across_many_batches();
   test_concurrent_callers();
+  test_scratch_on_own_cache_lines();
   test_clean_destruction();
   return test_finish();
 }

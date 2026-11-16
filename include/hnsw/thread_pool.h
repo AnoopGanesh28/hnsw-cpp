@@ -20,9 +20,14 @@ namespace hnsw {
 //
 // The thread calling parallel_for takes part as thread index 0, so a pool of
 // size() threads starts size() - 1 of its own. Each thread index owns one
-// SearchScratch, reused across calls, for batch search.
+// SearchScratch, reused across calls, for batch search. Each scratch sits in
+// its own cache-line-aligned slot, so the per-query writes of one thread (the
+// visited-list epoch, heap buffer bookkeeping) never share a cache line with
+// another thread's scratch.
 class ThreadPool {
  public:
+  static constexpr size_t kCacheLine = 64;
+
   // fn(thread_index, begin, end) processes items [begin, end).
   using Task = std::function<void(size_t thread_index, size_t begin, size_t end)>;
 
@@ -47,14 +52,21 @@ class ThreadPool {
 
   // Scratch owned by thread_index. Inside parallel_for only that thread index
   // may use it; outside, do not use it while a parallel_for is running.
-  SearchScratch& scratch(size_t thread_index) { return scratch_[thread_index]; }
+  SearchScratch& scratch(size_t thread_index) { return scratch_[thread_index].scratch; }
 
  private:
   void worker(size_t thread_index);
   void run_chunks(size_t thread_index);
   void stop_workers() noexcept;
 
-  std::vector<SearchScratch> scratch_;
+  // alignas rounds sizeof up to a multiple of the line size, so slots never
+  // share a line with each other; the vector's buffer is allocated with the
+  // same alignment (C++17 aligned new), so they share none with other data.
+  struct alignas(kCacheLine) ScratchSlot {
+    SearchScratch scratch;
+  };
+
+  std::vector<ScratchSlot> scratch_;
   std::vector<std::thread> workers_;
 
   std::mutex call_mutex_;  // serializes parallel_for callers
