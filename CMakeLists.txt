@@ -57,7 +57,8 @@ add_library(hnsw STATIC
   src/hnsw.cpp
   src/search.cpp
   src/aligned_buffer.cpp
-  src/distance_avx2.cpp)
+  src/distance_avx2.cpp
+  src/index_file.cpp)
 # The AVX2 kernel gets its ISA flags per file, so the library builds (and
 # dispatches at run time) without -march=native.
 set_source_files_properties(src/distance_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
@@ -95,4 +96,6 @@ hnsw_add_test(test_alloc_free)
 hnsw_add_test(test_distance_avx2)
 hnsw_add_test(test_hnsw_avx2)
 hnsw_add_test(test_golden)
+hnsw_add_test(test_index_file)
+hnsw_add_test(test_index_file_corrupt)
 target_compile_options(test_golden PRIVATE ${HNSW_STRICT_FP})

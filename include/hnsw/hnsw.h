@@ -77,6 +77,15 @@ class HnswIndex {
   // description of the first violation found.
   std::string check_invariants() const;
 
+  // Writes the index to `path` in the format of docs/FORMAT.md (load it with
+  // LoadedIndex::open). The distance kernel is not stored: the file records
+  // the metric as squared L2, so an index built with another DistFn must not
+  // be saved. Writes a temporary file in the same directory, flushes it to
+  // disk, and renames it over `path`, so readers see either the old file or
+  // the complete new one. Throws IndexFileError on any I/O error (leaving no
+  // temporary file behind) or if dim or M exceed the format limits.
+  void save(const std::string& path) const;
+
  private:
   using Cand = Candidate;
 

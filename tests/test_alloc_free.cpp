@@ -1,48 +1,15 @@
 // Proves search_into performs no heap allocation once its scratch is warm.
 // Every global operator new form is replaced with a counting version.
 
-#include <atomic>
-#include <cstdlib>
-#include <new>
 #include <vector>
 
+#include "alloc_hook.h"
 #include "hnsw/config.h"
 #include "hnsw/hnsw.h"
 #include "hnsw_test_util.h"
 #include "test_helper.h"
 
-namespace {
-std::atomic<long> g_allocations{0};
-
-void* counted(std::size_t size, std::size_t align) {
-  ++g_allocations;
-  if (size == 0) size = 1;
-  void* p = align > alignof(std::max_align_t)
-                ? std::aligned_alloc(align, (size + align - 1) / align * align)
-                : std::malloc(size);
-  if (p == nullptr) throw std::bad_alloc();
-  return p;
-}
-}  // namespace
-
-void* operator new(std::size_t n) { return counted(n, 0); }
-void* operator new[](std::size_t n) { return counted(n, 0); }
-void* operator new(std::size_t n, std::align_val_t a) { return counted(n, static_cast<std::size_t>(a)); }
-void* operator new[](std::size_t n, std::align_val_t a) { return counted(n, static_cast<std::size_t>(a)); }
-void* operator new(std::size_t n, const std::nothrow_t&) noexcept {
-  try { return counted(n, 0); } catch (...) { return nullptr; }
-}
-void* operator new[](std::size_t n, const std::nothrow_t&) noexcept {
-  try { return counted(n, 0); } catch (...) { return nullptr; }
-}
-void operator delete(void* p) noexcept { std::free(p); }
-void operator delete[](void* p) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t) noexcept { std::free(p); }
-void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
-void operator delete(void* p, std::align_val_t) noexcept { std::free(p); }
-void operator delete[](void* p, std::align_val_t) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t, std::align_val_t) noexcept { std::free(p); }
-void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { std::free(p); }
+using test::g_allocations;
 
 using namespace hnsw;
 
