@@ -25,11 +25,17 @@ option(HNSW_OPT_ALLOC_FREE_HEAPS "Fixed-capacity search heaps in SearchScratch" 
 option(HNSW_OPT_PREFETCH "Software prefetch in the neighbor-expansion loop" ON)
 
 add_compile_options(-Wall -Wextra)
-# Strict IEEE evaluation of scalar code: forbids the compiler from fusing a*b+c
-# into FMA, which GCC and Clang otherwise do differently under -march=native.
-# Keeps the scalar reference kernel and all results bit-identical across
-# compilers. Explicit intrinsics (e.g. the AVX2 kernel) are unaffected.
-add_compile_options(-ffp-contract=off)
+# Strict IEEE evaluation (no fusing of a*b+c into FMA, which GCC and Clang
+# otherwise do differently under -march=native), applied only where float
+# results must be bit-identical across compilers:
+# - src/distance.cpp: the scalar reference kernel, the only fusable float
+#   arithmetic in the library (the other float math, level sampling in
+#   hnsw.cpp, multiplies by an exact power of two, so fusing cannot change it);
+# - tests/test_golden.cpp: compares against hashes produced by
+#   tests/gen_golden.sh (built with the same flag), and inlines the
+#   <random> float generation that feeds those hashes.
+# Explicit intrinsics (the AVX2 kernel) are unaffected either way.
+set(HNSW_STRICT_FP -ffp-contract=off)
 if(HNSW_NATIVE)
   add_compile_options(-march=native)
 endif()
@@ -55,6 +61,7 @@ add_library(hnsw STATIC
 # The AVX2 kernel gets its ISA flags per file, so the library builds (and
 # dispatches at run time) without -march=native.
 set_source_files_properties(src/distance_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
+set_source_files_properties(src/distance.cpp PROPERTIES COMPILE_OPTIONS "${HNSW_STRICT_FP}")
 target_include_directories(hnsw PUBLIC include)
 target_compile_definitions(hnsw PUBLIC
   HNSW_OPT_EPOCH_VISITED=$<BOOL:${HNSW_OPT_EPOCH_VISITED}>
@@ -88,3 +95,4 @@ hnsw_add_test(test_alloc_free)
 hnsw_add_test(test_distance_avx2)
 hnsw_add_test(test_hnsw_avx2)
 hnsw_add_test(test_golden)
+target_compile_options(test_golden PRIVATE ${HNSW_STRICT_FP})
