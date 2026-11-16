@@ -3,6 +3,7 @@
 #include <queue>
 
 #include "fixed_heap.h"
+#include "hnsw/config.h"
 #include "hnsw/graph.h"
 #include "search_layer.h"
 
@@ -10,12 +11,27 @@ namespace hnsw {
 namespace detail {
 namespace {
 
+// How many neighbors ahead of the one being processed to prefetch, and how
+// many leading 64-byte lines of each upcoming vector to request.
+constexpr size_t kPrefetchAhead = 2;
+constexpr size_t kPrefetchVectorLines = 2;
+constexpr size_t kCacheLine = 64;
+
+inline void prefetch(const void* p) {
+#if defined(__GNUC__) || defined(__clang__)
+  __builtin_prefetch(p, 0, 3);
+#else
+  (void)p;
+#endif
+}
+
 #if HNSW_OPT_EPOCH_VISITED
 // Epoch-tagged marks owned by the scratch object.
 class Visited {
  public:
   Visited(SearchScratch& scratch, size_t n) : scratch_(scratch) { scratch_.begin_pass(n); }
   bool test_and_set(uint32_t id) { return scratch_.test_and_set(id); }
+  const void* address(uint32_t id) const { return scratch_.tag_address(id); }
 
  private:
   SearchScratch& scratch_;
@@ -30,6 +46,7 @@ class Visited {
     marks_[id] = 1;
     return seen;
   }
+  const void* address(uint32_t id) const { return marks_.data() + id; }
 
  private:
   std::vector<uint8_t> marks_;
@@ -74,6 +91,15 @@ class ResultHeap : public std::priority_queue<Cand> {
 };
 #endif
 
+// Requests the visited mark and the first lines of the vector of node id.
+template <typename VisitedT>
+inline void prefetch_node(const GraphView& g, const VisitedT& visited, uint32_t id,
+                          size_t vector_lines) {
+  prefetch(visited.address(id));
+  const char* v = reinterpret_cast<const char*>(g.vector(id));
+  for (size_t line = 0; line < vector_lines; ++line) prefetch(v + line * kCacheLine);
+}
+
 }  // namespace
 
 Cand greedy_closest(const GraphView& g, DistFn dist, const float* q, Cand cur, int level) {
@@ -96,6 +122,8 @@ CandidateSpan search_layer(const GraphView& g, DistFn dist, const float* q,
                            const Cand* entry, size_t num_entry, size_t ef, int level,
                            SearchScratch& scratch) {
   const size_t dim = g.layout.dim;
+  const size_t vector_lines =
+      std::min(kPrefetchVectorLines, (dim * sizeof(float) + kCacheLine - 1) / kCacheLine);
   scratch.reserve_heaps(g.count, ef);
   Visited visited(scratch, g.count);
   CandidateHeap candidates(scratch);
@@ -111,7 +139,17 @@ CandidateSpan search_layer(const GraphView& g, DistFn dist, const float* q,
     const Cand c = candidates.top();
     if (c.first > found.top().first) break;
     candidates.pop();
-    for (uint32_t e : g.neighbors(c.second, level)) {
+    const NeighborView nb = g.neighbors(c.second, level);
+    if (kPrefetch) {
+      for (size_t j = 0; j < std::min(kPrefetchAhead, nb.count); ++j) {
+        prefetch_node(g, visited, nb.data[j], vector_lines);
+      }
+    }
+    for (size_t j = 0; j < nb.count; ++j) {
+      if (kPrefetch && j + kPrefetchAhead < nb.count) {
+        prefetch_node(g, visited, nb.data[j + kPrefetchAhead], vector_lines);
+      }
+      const uint32_t e = nb.data[j];
       if (visited.test_and_set(e)) continue;
       const Cand cand{dist(q, g.vector(e), dim), e};
       if (found.size() < ef || cand < found.top()) {

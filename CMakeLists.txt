@@ -18,6 +18,7 @@ set_property(CACHE HNSW_SANITIZE PROPERTY STRINGS
 
 option(HNSW_OPT_EPOCH_VISITED "Epoch-tagged visited list in SearchScratch" ON)
 option(HNSW_OPT_ALLOC_FREE_HEAPS "Fixed-capacity search heaps in SearchScratch" ON)
+option(HNSW_OPT_PREFETCH "Software prefetch in the neighbor-expansion loop" ON)
 
 add_compile_options(-Wall -Wextra)
 # Strict IEEE evaluation of scalar code: forbids the compiler from fusing a*b+c
@@ -49,7 +50,8 @@ add_library(hnsw STATIC
 target_include_directories(hnsw PUBLIC include)
 target_compile_definitions(hnsw PUBLIC
   HNSW_OPT_EPOCH_VISITED=$<BOOL:${HNSW_OPT_EPOCH_VISITED}>
-  HNSW_OPT_ALLOC_FREE_HEAPS=$<BOOL:${HNSW_OPT_ALLOC_FREE_HEAPS}>)
+  HNSW_OPT_ALLOC_FREE_HEAPS=$<BOOL:${HNSW_OPT_ALLOC_FREE_HEAPS}>
+  HNSW_OPT_PREFETCH=$<BOOL:${HNSW_OPT_PREFETCH}>)
 
 enable_testing()
 
