@@ -63,6 +63,8 @@ file, and each one's header comment lists every flag.
 | `bench_loadtime` | Load time and the time to answer the first `--first` queries for five strategies: ours mmap / read, each with shallow / deep validation, and hnswlib `loadIndex`. |
 | `run_cold_loadtime.sh` | `bench_loadtime` with `sync; echo 3 \| sudo tee /proc/sys/vm/drop_caches` before every load. It needs sudo, so run it yourself. |
 | `run_all.sh` | The whole M5b run, stage by stage (below). |
+| `make_report.py` | Writes `results/summary.md`, `recall_vs_qps.png` and `ablation.png` from the result files; `--update-readme` regenerates the block between the `RESULTS` markers in the top-level README. Needs numpy and matplotlib. |
+| `check_readme.py` | Fails if a number in the README's generated block is not in `summary.md`, or if the hand-written Results text contains a number. |
 | `m2_baseline/bench_m2` | The M2 scalar baseline (tag `m2-scalar-baseline`) built through its public API, for the layout ablation. Built by `m2_baseline/build.sh` against a worktree of the tag. |
 
 `bench_search --kernel scalar` (and `bench_build --kernel scalar`, ours only) uses the
