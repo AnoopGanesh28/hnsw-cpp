@@ -13,7 +13,7 @@ Work in progress. See docs/TASK.md.
 | M3: contiguous layout, epoch visited list, allocation-free heaps, prefetch, AVX2+FMA kernel | done |
 | M4: index file format (save, mmap/read load, validation), thread pool, batch query API | done |
 | M5a: benchmark infrastructure (dataset scripts, ground-truth validation, build/search/load-time harness with hnswlib baseline, tests) | done |
-| M5b: SIFT1M runs, ablation, profile, plot, results table | not started |
+| M5b: SIFT1M runs, ablation, profile, plot, results table | partial: false-sharing fix and `bench/run_all.sh` orchestration done; timed runs blocked (`bench/results/env_manual.txt` missing, and timed stages refuse to start without it) |
 | M6, M7 | not started |
 
 No benchmark results yet. The tools and the method are described in
