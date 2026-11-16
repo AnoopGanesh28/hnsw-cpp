@@ -2,22 +2,14 @@
 
 #include <algorithm>
 #include <cmath>
-#include <functional>
+#include <cstring>
 #include <limits>
-#include <queue>
 #include <sstream>
 #include <stdexcept>
 
+#include "search_layer.h"
+
 namespace hnsw {
-namespace {
-
-using Cand = std::pair<float, uint32_t>;
-// Candidates compare by distance, then id, giving a total order so traversal
-// and results are deterministic under distance ties.
-using MaxHeap = std::priority_queue<Cand>;
-using MinHeap = std::priority_queue<Cand, std::vector<Cand>, std::greater<Cand>>;
-
-}  // namespace
 
 HnswIndex::HnswIndex(size_t dim, HnswParams params, DistFn dist)
     : dim_(dim), params_(params), dist_(dist), rng_(params.seed) {
@@ -34,7 +26,40 @@ HnswIndex::HnswIndex(size_t dim, HnswParams params, DistFn dist)
   if (dist == nullptr) {
     throw std::invalid_argument("HnswIndex: distance function must not be null");
   }
+  layout_ = Layout::make(dim, params.M);
   ml_ = 1.0 / std::log(static_cast<double>(params.M));
+}
+
+void HnswIndex::reserve(size_t n) {
+  arena_.reserve(n * layout_.record_stride);
+  levels_.reserve(n);
+  upper_offsets_.reserve(n);
+}
+
+GraphView HnswIndex::view() const {
+  GraphView g;
+  g.layout = layout_;
+  g.base = arena_.data();
+  g.count = size();
+  g.levels = levels_.data();
+  g.upper_offsets = upper_offsets_.data();
+  g.upper_links = upper_links_.data();
+  g.entry_point = entry_;
+  g.max_level = max_level_;
+  return g;
+}
+
+const float* HnswIndex::vec(uint32_t id) const {
+  return reinterpret_cast<const float*>(arena_.data() + layout_.record_offset(id) +
+                                        layout_.vector_offset);
+}
+
+uint32_t* HnswIndex::link_block(uint32_t id, int level) {
+  if (level == 0) {
+    return reinterpret_cast<uint32_t*>(arena_.data() + layout_.record_offset(id) +
+                                       layout_.count_offset);
+  }
+  return upper_links_.data() + layout_.upper_block_offset(upper_offsets_[id], level);
 }
 
 // level = floor(-ln(U) * mL), U uniform in (0, 1]. U is built from the top
@@ -42,60 +67,6 @@ HnswIndex::HnswIndex(size_t dim, HnswParams params, DistFn dist)
 int HnswIndex::sample_level() {
   const double u = static_cast<double>(rng_() >> 11) * 0x1.0p-53;  // [0, 1)
   return static_cast<int>(std::floor(-std::log(1.0 - u) * ml_));
-}
-
-// Greedy descent on one layer (SEARCH-LAYER with ef = 1): move to the closest
-// neighbor while that improves the distance.
-HnswIndex::Cand HnswIndex::greedy_closest(const float* q, Cand cur, int level) const {
-  bool improved = true;
-  while (improved) {
-    improved = false;
-    for (uint32_t e : links_[cur.second][level]) {
-      const Cand c{distance(q, e), e};
-      if (c < cur) {
-        cur = c;
-        improved = true;
-      }
-    }
-  }
-  return cur;
-}
-
-// Algorithm 2 (SEARCH-LAYER). Returns up to ef nearest found, ascending.
-std::vector<HnswIndex::Cand> HnswIndex::search_layer(const float* q,
-                                                     const std::vector<Cand>& entry,
-                                                     size_t ef, int level) const {
-  std::vector<uint8_t> visited(size(), 0);
-  MinHeap candidates;
-  MaxHeap found;
-  for (const Cand& e : entry) {
-    if (visited[e.second]) continue;
-    visited[e.second] = 1;
-    candidates.push(e);
-    found.push(e);
-    if (found.size() > ef) found.pop();
-  }
-  while (!candidates.empty()) {
-    const Cand c = candidates.top();
-    if (c.first > found.top().first) break;
-    candidates.pop();
-    for (uint32_t e : links_[c.second][level]) {
-      if (visited[e]) continue;
-      visited[e] = 1;
-      const Cand cand{distance(q, e), e};
-      if (found.size() < ef || cand < found.top()) {
-        candidates.push(cand);
-        found.push(cand);
-        if (found.size() > ef) found.pop();
-      }
-    }
-  }
-  std::vector<Cand> out(found.size());
-  for (size_t i = out.size(); i-- > 0;) {
-    out[i] = found.top();
-    found.pop();
-  }
-  return out;
 }
 
 // Algorithm 4 (SELECT-NEIGHBORS-HEURISTIC) over candidates sorted ascending by
@@ -126,17 +97,33 @@ std::vector<uint32_t> HnswIndex::select_neighbors(const std::vector<Cand>& sorte
   return selected;
 }
 
+// Overwrites the neighbor list of id on `level`; unused slots are zeroed so
+// the stored bytes depend only on the list contents.
+void HnswIndex::set_links(uint32_t id, int level, const std::vector<uint32_t>& ids) {
+  uint32_t* block = link_block(id, level);
+  const size_t cap = layout_.max_links(level);
+  block[0] = static_cast<uint32_t>(ids.size());
+  std::copy(ids.begin(), ids.end(), block + 1);
+  std::fill(block + 1 + ids.size(), block + 1 + cap, 0u);
+}
+
 // Adds the link from -> to on `level`; if from's list then exceeds its cap,
 // re-selects it with the heuristic over (its neighbors + to).
 void HnswIndex::connect(uint32_t from, uint32_t to, int level) {
-  std::vector<uint32_t>& list = links_[from][level];
-  list.push_back(to);
-  if (list.size() <= cap(level)) return;
+  uint32_t* block = link_block(from, level);
+  const size_t count = block[0];
+  const size_t cap = layout_.max_links(level);
+  if (count < cap) {
+    block[1 + count] = to;
+    block[0] = static_cast<uint32_t>(count + 1);
+    return;
+  }
   std::vector<Cand> cands;
-  cands.reserve(list.size());
-  for (uint32_t x : list) cands.push_back({distance(vec(from), x), x});
+  cands.reserve(count + 1);
+  for (size_t i = 0; i < count; ++i) cands.push_back({distance(vec(from), block[1 + i]), block[1 + i]});
+  cands.push_back({distance(vec(from), to), to});
   std::sort(cands.begin(), cands.end());
-  list = select_neighbors(cands, cap(level));
+  set_links(from, level, select_neighbors(cands, cap));
 }
 
 // Algorithm 1 (INSERT).
@@ -145,11 +132,18 @@ uint32_t HnswIndex::add(const float* v) {
     throw std::length_error("HnswIndex: too many elements for uint32 ids");
   }
   const uint32_t id = static_cast<uint32_t>(size());
-  vectors_.insert(vectors_.end(), v, v + dim_);
-  const float* q = vec(id);
   const int level = sample_level();
-  levels_.push_back(level);
-  links_.emplace_back(static_cast<size_t>(level) + 1);
+
+  arena_.resize(arena_.size() + layout_.record_stride);
+  std::memcpy(arena_.data() + layout_.record_offset(id) + layout_.vector_offset, v,
+              dim_ * sizeof(float));
+  levels_.push_back(static_cast<uint8_t>(level));
+  if (level > 0) {
+    upper_offsets_.push_back(upper_links_.size());
+    upper_links_.resize(upper_links_.size() + static_cast<size_t>(level) * layout_.upper_block, 0u);
+  } else {
+    upper_offsets_.push_back(0);
+  }
 
   if (id == 0) {
     entry_ = 0;
@@ -157,14 +151,17 @@ uint32_t HnswIndex::add(const float* v) {
     return id;
   }
 
+  const float* q = vec(id);
+  const GraphView g = view();
   Cand cur{distance(q, entry_), entry_};
-  for (int lc = max_level_; lc > level; --lc) cur = greedy_closest(q, cur, lc);
+  for (int lc = max_level_; lc > level; --lc) cur = detail::greedy_closest(g, dist_, q, cur, lc);
 
   std::vector<Cand> eps{cur};
   for (int lc = std::min(level, max_level_); lc >= 0; --lc) {
-    std::vector<Cand> w = search_layer(q, eps, params_.ef_construction, lc);
-    links_[id][lc] = select_neighbors(w, params_.M);
-    for (uint32_t e : links_[id][lc]) connect(e, id, lc);
+    std::vector<Cand> w = detail::search_layer(g, dist_, q, eps, params_.ef_construction, lc);
+    const std::vector<uint32_t> selected = select_neighbors(w, params_.M);
+    set_links(id, lc, selected);
+    for (uint32_t e : selected) connect(e, id, lc);
     eps = std::move(w);
   }
 
@@ -175,23 +172,8 @@ uint32_t HnswIndex::add(const float* v) {
   return id;
 }
 
-// Algorithm 5 (K-NN-SEARCH).
 KnnResult HnswIndex::search(const float* query, size_t k, size_t ef) const {
-  KnnResult result;
-  if (size() == 0 || k == 0) return result;
-
-  Cand cur{distance(query, entry_), entry_};
-  for (int lc = max_level_; lc > 0; --lc) cur = greedy_closest(query, cur, lc);
-  const std::vector<Cand> w = search_layer(query, {cur}, std::max(ef, k), 0);
-
-  const size_t take = std::min(k, w.size());
-  result.ids.reserve(take);
-  result.dists.reserve(take);
-  for (size_t i = 0; i < take; ++i) {
-    result.dists.push_back(w[i].first);
-    result.ids.push_back(w[i].second);
-  }
-  return result;
+  return search_graph(view(), dist_, query, k, ef);
 }
 
 uint32_t HnswIndex::entry_point() const {
@@ -211,15 +193,18 @@ NeighborView HnswIndex::neighbors(uint32_t id, int level) const {
     throw std::out_of_range("HnswIndex: node " + std::to_string(id) +
                             " has no level " + std::to_string(level));
   }
-  const std::vector<uint32_t>& list = links_[id][level];
-  return {list.data(), list.size()};
+  return view().neighbors(id, level);
 }
 
 std::string HnswIndex::check_invariants() const {
   std::ostringstream err;
   const size_t n = size();
-  if (vectors_.size() != n * dim_ || links_.size() != n) {
+  if (arena_.size() != n * layout_.record_stride || upper_offsets_.size() != n) {
     err << "storage sizes disagree with node count " << n;
+    return err.str();
+  }
+  if (reinterpret_cast<uintptr_t>(arena_.data()) % Layout::kRecordAlign != 0) {
+    err << "arena is not " << Layout::kRecordAlign << "-byte aligned";
     return err.str();
   }
   if (n == 0) {
@@ -231,26 +216,27 @@ std::string HnswIndex::check_invariants() const {
     return err.str();
   }
   if (levels_[entry_] != max_level_) {
-    err << "entry point " << entry_ << " has level " << levels_[entry_]
+    err << "entry point " << entry_ << " has level " << int{levels_[entry_]}
         << ", max_level is " << max_level_;
     return err.str();
   }
+  const GraphView g = view();
   for (uint32_t id = 0; id < n; ++id) {
     const int lvl = levels_[id];
-    if (lvl < 0 || lvl > max_level_) {
+    if (lvl > max_level_) {
       err << "node " << id << " has level " << lvl << " outside [0, " << max_level_ << "]";
       return err.str();
     }
-    if (links_[id].size() != static_cast<size_t>(lvl) + 1) {
-      err << "node " << id << " at level " << lvl << " has " << links_[id].size()
-          << " neighbor lists";
+    if (lvl > 0 && upper_offsets_[id] + static_cast<uint64_t>(lvl) * layout_.upper_block >
+                       upper_links_.size()) {
+      err << "node " << id << " upper links exceed the upper table";
       return err.str();
     }
     for (int l = 0; l <= lvl; ++l) {
-      const std::vector<uint32_t>& list = links_[id][l];
-      if (list.size() > cap(l)) {
-        err << "node " << id << " level " << l << " degree " << list.size()
-            << " exceeds cap " << cap(l);
+      const NeighborView list = g.neighbors(id, l);
+      if (list.count > layout_.max_links(l)) {
+        err << "node " << id << " level " << l << " degree " << list.count
+            << " exceeds cap " << layout_.max_links(l);
         return err.str();
       }
       for (uint32_t nb : list) {
@@ -264,11 +250,11 @@ std::string HnswIndex::check_invariants() const {
         }
         if (levels_[nb] < l) {
           err << "node " << id << " level " << l << " links node " << nb
-              << " whose level is " << levels_[nb];
+              << " whose level is " << int{levels_[nb]};
           return err.str();
         }
       }
-      std::vector<uint32_t> sorted = list;
+      std::vector<uint32_t> sorted(list.begin(), list.end());
       std::sort(sorted.begin(), sorted.end());
       if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end()) {
         err << "node " << id << " level " << l << " has duplicate neighbors";

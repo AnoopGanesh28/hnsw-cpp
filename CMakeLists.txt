@@ -17,6 +17,11 @@ set_property(CACHE HNSW_SANITIZE PROPERTY STRINGS
              off address undefined "address,undefined")
 
 add_compile_options(-Wall -Wextra)
+# Strict IEEE evaluation of scalar code: forbids the compiler from fusing a*b+c
+# into FMA, which GCC and Clang otherwise do differently under -march=native.
+# Keeps the scalar reference kernel and all results bit-identical across
+# compilers. Explicit intrinsics (e.g. the AVX2 kernel) are unaffected.
+add_compile_options(-ffp-contract=off)
 if(HNSW_NATIVE)
   add_compile_options(-march=native)
 endif()
@@ -35,7 +40,9 @@ add_library(hnsw STATIC
   src/io.cpp
   src/distance.cpp
   src/brute_force.cpp
-  src/hnsw.cpp)
+  src/hnsw.cpp
+  src/search.cpp
+  src/aligned_buffer.cpp)
 target_include_directories(hnsw PUBLIC include)
 
 enable_testing()
@@ -57,3 +64,5 @@ hnsw_add_test(test_hnsw_connectivity)
 hnsw_add_test(test_hnsw_heuristic)
 hnsw_add_test(test_hnsw_edge_cases)
 hnsw_add_test(test_hnsw_determinism)
+hnsw_add_test(test_layout)
+hnsw_add_test(test_golden)
