@@ -554,4 +554,10 @@ size_t LoadedIndex::search_into(const float* query, size_t k, size_t ef, SearchS
   return search_graph_into(view_, dist_, query, k, ef, scratch, out_ids, out_dists);
 }
 
+void LoadedIndex::search_batch(const float* queries, size_t n_queries, size_t k, size_t ef,
+                               uint32_t* out_ids, float* out_dists, ThreadPool& pool,
+                               size_t chunk) const {
+  search_graph_batch(view_, dist_, queries, n_queries, k, ef, out_ids, out_dists, pool, chunk);
+}
+
 }  // namespace hnsw

@@ -95,11 +95,14 @@ class LoadedIndex {
   NeighborView neighbors(uint32_t id, int level) const;
   const float* vector(uint32_t id) const;
 
-  // Same contracts as HnswIndex::search / search_into.
+  // Same contracts as HnswIndex::search / search_into / search_batch.
   KnnResult search(const float* query, size_t k, size_t ef) const;
   KnnResult search(const float* query, size_t k, size_t ef, SearchScratch& scratch) const;
   size_t search_into(const float* query, size_t k, size_t ef, SearchScratch& scratch,
                      uint32_t* out_ids, float* out_dists) const;
+  void search_batch(const float* queries, size_t n_queries, size_t k, size_t ef,
+                    uint32_t* out_ids, float* out_dists, ThreadPool& pool,
+                    size_t chunk = kDefaultBatchChunk) const;
 
  private:
   struct AlignedFree {

@@ -11,7 +11,7 @@ Work in progress. See docs/TASK.md.
 | M1: CMake project, fvecs/ivecs IO, brute-force kNN, scalar L2, unit tests | done |
 | M2: HNSW build and search (scalar, single-threaded baseline) | done |
 | M3: contiguous layout, epoch visited list, allocation-free heaps, prefetch, AVX2+FMA kernel | done |
-| M4: index file format (save, mmap/read load, validation) | in progress: file format done |
+| M4: index file format (save, mmap/read load, validation), thread pool, batch query API | done |
 | M5 to M7 | not started |
 
 ### Build options (M3)
@@ -36,3 +36,16 @@ same search API and bit-identical results. The byte-level format and every check
 loader makes are in [docs/FORMAT.md](docs/FORMAT.md). Files are treated as untrusted:
 with `validate_deep` on (the default) any file that loads is safe to search; with it
 off, only load files you trust.
+
+### Concurrent search (M4)
+
+`ThreadPool(n_threads)` (`include/hnsw/thread_pool.h`) is a persistent pool reused across
+calls; `n_threads = 0` uses `std::thread::hardware_concurrency()`. `search_batch(queries,
+n_queries, k, ef, out_ids, out_dists, pool)` on `HnswIndex` and `LoadedIndex` writes
+`n_queries * k` results row-major into caller arrays, padding short rows with
+`hnsw::kNoNeighbor` (`UINT32_MAX`) and `+infinity`, and returns exactly what sequential
+`search` returns. Each pool thread keeps its own `SearchScratch`. Calling `search` from
+your own threads at the same time is also safe, as long as each thread uses its own
+`SearchScratch` and nothing is inserting.
+
+`-DHNSW_SANITIZE=thread` builds with ThreadSanitizer (not combinable with `address`).

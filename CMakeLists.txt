@@ -16,9 +16,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 option(HNSW_NATIVE "Compile with -march=native" ON)
 set(HNSW_SANITIZE "off" CACHE STRING
-    "Sanitizers: off, address, undefined, or address,undefined")
+    "Sanitizers: off, address, undefined, address,undefined, or thread")
 set_property(CACHE HNSW_SANITIZE PROPERTY STRINGS
-             off address undefined "address,undefined")
+             off address undefined "address,undefined" thread)
 
 option(HNSW_OPT_EPOCH_VISITED "Epoch-tagged visited list in SearchScratch" ON)
 option(HNSW_OPT_ALLOC_FREE_HEAPS "Fixed-capacity search heaps in SearchScratch" ON)
@@ -41,10 +41,11 @@ if(HNSW_NATIVE)
 endif()
 
 if(NOT HNSW_SANITIZE STREQUAL "off")
-  if(NOT HNSW_SANITIZE MATCHES "^(address|undefined|address,undefined)$")
+  # ThreadSanitizer cannot be combined with AddressSanitizer.
+  if(NOT HNSW_SANITIZE MATCHES "^(address|undefined|address,undefined|thread)$")
     message(FATAL_ERROR
-      "HNSW_SANITIZE must be off, address, undefined, or address,undefined "
-      "(got '${HNSW_SANITIZE}')")
+      "HNSW_SANITIZE must be off, address, undefined, address,undefined, or "
+      "thread (got '${HNSW_SANITIZE}')")
   endif()
   add_compile_options(-fsanitize=${HNSW_SANITIZE} -fno-omit-frame-pointer)
   add_link_options(-fsanitize=${HNSW_SANITIZE})
@@ -58,7 +59,9 @@ add_library(hnsw STATIC
   src/search.cpp
   src/aligned_buffer.cpp
   src/distance_avx2.cpp
-  src/index_file.cpp)
+  src/index_file.cpp
+  src/thread_pool.cpp
+  src/batch.cpp)
 # The AVX2 kernel gets its ISA flags per file, so the library builds (and
 # dispatches at run time) without -march=native.
 set_source_files_properties(src/distance_avx2.cpp PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
@@ -98,4 +101,7 @@ hnsw_add_test(test_hnsw_avx2)
 hnsw_add_test(test_golden)
 hnsw_add_test(test_index_file)
 hnsw_add_test(test_index_file_corrupt)
+hnsw_add_test(test_thread_pool)
+hnsw_add_test(test_batch)
+hnsw_add_test(test_concurrent_search)
 target_compile_options(test_golden PRIVATE ${HNSW_STRICT_FP})

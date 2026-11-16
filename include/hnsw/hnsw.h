@@ -27,8 +27,11 @@ struct HnswParams {
   bool keep_pruned = false;
 };
 
-// Hierarchical Navigable Small World index (Malkov & Yashunin), single
-// threaded. Ids are assigned sequentially from 0 in insertion order.
+// Hierarchical Navigable Small World index (Malkov & Yashunin). Ids are
+// assigned sequentially from 0 in insertion order. Insertion is single
+// threaded. While no add() or reserve() runs, the search methods are safe to
+// call from any number of threads at once, provided each thread uses its own
+// SearchScratch (the overloads without one use a thread_local scratch).
 // Storage follows Layout: one contiguous arena of fixed-size layer-0 records
 // (links + vector) plus a separate table for upper-layer links.
 class HnswIndex {
@@ -54,6 +57,11 @@ class HnswIndex {
   // results into out_ids / out_dists and returns how many were written.
   size_t search_into(const float* query, size_t k, size_t ef, SearchScratch& scratch,
                      uint32_t* out_ids, float* out_dists) const;
+  // Batch search on `pool` (see search_graph_batch): writes n_queries rows of
+  // k results into out_ids / out_dists, padded with kNoNeighbor / +infinity.
+  void search_batch(const float* queries, size_t n_queries, size_t k, size_t ef,
+                    uint32_t* out_ids, float* out_dists, ThreadPool& pool,
+                    size_t chunk = kDefaultBatchChunk) const;
 
   size_t size() const { return levels_.size(); }
   size_t dim() const { return dim_; }

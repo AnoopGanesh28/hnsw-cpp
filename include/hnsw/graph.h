@@ -10,6 +10,8 @@
 
 namespace hnsw {
 
+class ThreadPool;
+
 // Read-only view of one neighbor list.
 struct NeighborView {
   const uint32_t* data = nullptr;
@@ -62,5 +64,23 @@ KnnResult search_graph(const GraphView& graph, DistFn dist, const float* query,
 size_t search_graph_into(const GraphView& graph, DistFn dist, const float* query,
                          size_t k, size_t ef, SearchScratch& scratch, uint32_t* out_ids,
                          float* out_dists);
+
+// Id written into batch result slots beyond the results found (fewer than k
+// nodes reachable or in the index); its distance is +infinity. Never a valid
+// id, since ids are below the node count, which fits in uint32.
+inline constexpr uint32_t kNoNeighbor = UINT32_MAX;
+// Queries per work chunk claimed by a pool thread, unless the caller says.
+inline constexpr size_t kDefaultBatchChunk = 8;
+
+// Searches n_queries row-major queries (n_queries * dim floats) on `pool`.
+// Row q of out_ids / out_dists (n_queries * k elements each, row-major) gets
+// query q's results, exactly as search_graph_into returns them, followed by
+// kNoNeighbor / +infinity padding up to k. Each pool thread searches with its
+// own pool.scratch(), so a warm pool performs no per-query allocation.
+// Writes nothing if n_queries == 0 or k == 0. The graph must not change
+// during the call. Throws std::invalid_argument if chunk == 0.
+void search_graph_batch(const GraphView& graph, DistFn dist, const float* queries,
+                        size_t n_queries, size_t k, size_t ef, uint32_t* out_ids,
+                        float* out_dists, ThreadPool& pool, size_t chunk = kDefaultBatchChunk);
 
 }  // namespace hnsw
