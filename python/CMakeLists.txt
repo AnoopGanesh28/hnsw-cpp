@@ -17,3 +17,17 @@ add_custom_command(TARGET _core POST_BUILD
 # The wheel gets the extension from here and the .py/.pyi/py.typed files from
 # the package directory (pyproject.toml: wheel.packages).
 install(TARGETS _core LIBRARY DESTINATION hnsw_cpp)
+
+# Tests run against the build tree (PYTHONPATH). Skipped for sanitizer builds:
+# the extension would need the sanitizer runtime preloaded into Python.
+if(HNSW_SANITIZE STREQUAL "off")
+  set(_hnsw_py_env "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}")
+  add_test(NAME python_tests
+           COMMAND ${Python_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  add_test(NAME python_quickstart
+           COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/quickstart.py)
+  set_tests_properties(python_tests python_quickstart PROPERTIES
+                       ENVIRONMENT "${_hnsw_py_env}" TIMEOUT 300)
+else()
+  message(STATUS "Python tests not registered: sanitizer build")
+endif()

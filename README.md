@@ -14,7 +14,8 @@ Work in progress. See docs/TASK.md.
 | M4: index file format (save, mmap/read load, validation), thread pool, batch query API | done |
 | M5a: benchmark infrastructure (dataset scripts, ground-truth validation, build/search/load-time harness with hnswlib baseline, tests) | done |
 | M5b: SIFT1M runs, ablation, profile, plot, results table | done (see [Results](#results)) |
-| M6, M7 | not started |
+| M6: Python bindings (pybind11), tests and example | done (see [Python bindings](#python-bindings-m6)) |
+| M7 | not started |
 
 Benchmark results are in [Results](#results). The tools and the method are described in
 [bench/README.md](bench/README.md). SIFT1M downloads and validates on this machine
@@ -55,6 +56,27 @@ your own threads at the same time is also safe, as long as each thread uses its 
 `SearchScratch` and nothing is inserting.
 
 `-DHNSW_SANITIZE=thread` builds with ThreadSanitizer (not combinable with `address`).
+
+### Python bindings (M6)
+
+`import hnsw_cpp` offers `Index` (build, `add`, `search`, `save`), `load(path, mode, validate)`
+returning a read-only `LoadedIndex`, and type stubs. Distances are squared L2; missing results
+are id `-1` with distance `+inf`. Inputs must already be C-contiguous float32 numpy arrays;
+nothing is copied or converted, and wrong input raises `TypeError` or `ValueError` saying how
+to fix it. Any number of searches may run at once; `add` is exclusive. `validate="shallow"`
+requires a trusted file.
+
+```
+python3 -m venv .venv && . .venv/bin/activate
+pip install .                      # scikit-build-core builds a portable (no -march=native) wheel
+python python/examples/quickstart.py
+python -m unittest discover -s python/tests
+```
+
+In-tree: `cmake -B build -DHNSW_BUILD_PYTHON=ON` (needs pybind11 and Python development files)
+registers `python_tests` and `python_quickstart` with ctest, except in sanitizer builds, where the
+extension is built but not run. The Python package makes no performance claim; the benchmarks
+below measure the C++ library only.
 
 ## Results
 
