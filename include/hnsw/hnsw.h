@@ -44,6 +44,10 @@ class HnswIndex {
   void reserve(size_t n);
 
   // Copies dim floats from vec into the index and links it. Returns its id.
+  // Throws std::invalid_argument, before changing any state, if any element is
+  // NaN or infinite (the file loader rejects such vectors, so an index holding
+  // one could be saved but never reloaded). Throws std::length_error if the
+  // index already holds 2^32 - 1 elements.
   uint32_t add(const float* vec);
 
   // Approximate k nearest neighbors, ascending by distance, ties by lower id.

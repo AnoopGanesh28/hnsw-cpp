@@ -1,9 +1,12 @@
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
 #include "hnsw/brute_force.h"
 #include "hnsw/hnsw.h"
+#include "hnsw/index_file.h"
 #include "hnsw_test_util.h"
+#include "index_file_util.h"
 #include "test_helper.h"
 
 using namespace hnsw;
@@ -135,6 +138,42 @@ static void test_accessor_bounds() {
   CHECK_THROWS(index.neighbors(0, -1), std::out_of_range, "has no level");
 }
 
+static void test_add_rejects_non_finite() {
+  const size_t dim = 4;
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const float inf = std::numeric_limits<float>::infinity();
+  const auto base = test::uniform_data(40, dim, 11);
+
+  // Reference: the same adds without any failed attempt in between.
+  test::TempFile ref_file("nonfinite_ref"), got_file("nonfinite_got");
+  HnswIndex ref(dim, test::params(4, 20, 5));
+  for (size_t i = 0; i < 40; ++i) ref.add(base.data() + i * dim);
+  ref.save(ref_file.path());
+
+  HnswIndex index(dim, test::params(4, 20, 5));
+  const float bad[][4] = {{nan, 0, 0, 0}, {0, inf, 0, 0}, {0, 0, -inf, 0}, {0, 0, 0, nan}};
+  const char* where[] = {"element 0 ", "element 1 ", "element 2 ", "element 3 "};
+  for (size_t i = 0; i < 40; ++i) {
+    if (i % 10 == 0) {
+      // Fails on an empty index (i == 0) and on a populated one.
+      for (int b = 0; b < 4; ++b) {
+        const size_t before = index.size();
+        CHECK_THROWS(index.add(bad[b]), std::invalid_argument, where[b]);
+        CHECK_THROWS(index.add(bad[b]), std::invalid_argument, "not finite");
+        CHECK_EQ(index.size(), before);
+        CHECK_EQ(index.check_invariants(), std::string());
+      }
+    }
+    CHECK_EQ(index.add(base.data() + i * dim), static_cast<uint32_t>(i));
+  }
+  // Failed adds changed nothing, not even the level-sampling RNG: the saved
+  // file is byte-identical to the reference and loads under deep validation.
+  index.save(got_file.path());
+  CHECK(test::read_bytes(got_file.path()) == test::read_bytes(ref_file.path()));
+  const LoadedIndex loaded = LoadedIndex::open(got_file.path());
+  CHECK_EQ(loaded.size(), size_t{40});
+}
+
 int main() {
   test_constructor_validation();
   test_empty_index();
@@ -143,5 +182,6 @@ int main() {
   test_duplicates();
   test_dim_one();
   test_accessor_bounds();
+  test_add_rejects_non_finite();
   return test_finish();
 }

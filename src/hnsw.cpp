@@ -131,6 +131,13 @@ uint32_t HnswIndex::add(const float* v) {
   if (size() >= std::numeric_limits<uint32_t>::max()) {
     throw std::length_error("HnswIndex: too many elements for uint32 ids");
   }
+  // Validate before touching any state (sample_level advances the RNG).
+  for (size_t i = 0; i < dim_; ++i) {
+    if (!std::isfinite(v[i])) {
+      throw std::invalid_argument("HnswIndex::add: vector element " + std::to_string(i) +
+                                  " is not finite");
+    }
+  }
   const uint32_t id = static_cast<uint32_t>(size());
   const int level = sample_level();
 
