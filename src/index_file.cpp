@@ -433,12 +433,44 @@ void LoadedIndex::AlignedFree::operator()(uint8_t* p) const {
   ::operator delete(p, std::align_val_t{kSectionAlign});
 }
 
+LoadedIndex LoadedIndex::parse(const uint8_t* data, size_t size, const LoadOptions& options,
+                               const std::string& name) {
+  if (options.dist == nullptr) {
+    throw std::invalid_argument("LoadedIndex: distance function must not be null");
+  }
+  const Errors err(name);
+  if (!kLittleEndianHost) err.fail("big-endian hosts are not supported");
+  if (size < kHeaderSize) {
+    err.fail("file has " + std::to_string(size) + " bytes, less than the " +
+             std::to_string(kHeaderSize) + "-byte header");
+  }
+  if (reinterpret_cast<uintptr_t>(data) % kSectionAlign != 0) {
+    err.fail("data is not " + std::to_string(kSectionAlign) + "-byte aligned");
+  }
+
+  LoadedIndex index;
+  index.dist_ = options.dist;
+  index.mode_ = LoadMode::Borrowed;
+  index.bytes_ = size;
+  const Header h = decode_header(data, size, err);
+  index.view_ = make_view(data, h);
+  index.ef_construction_ = h.ef_construction;
+  if (options.validate_deep) validate_deep(index.view_, h, err);
+  return index;
+}
+
+LoadedIndex LoadedIndex::from_memory(const void* data, size_t size, const LoadOptions& options) {
+  return parse(static_cast<const uint8_t*>(data), size, options, "<memory>");
+}
+
 LoadedIndex LoadedIndex::open(const std::string& path, const LoadOptions& options) {
   if (options.dist == nullptr) {
     throw std::invalid_argument("LoadedIndex::open: distance function must not be null");
   }
+  if (options.mode == LoadMode::Borrowed) {
+    throw std::invalid_argument("LoadedIndex::open: mode must be Mmap or Read");
+  }
   const Errors err(path);
-  if (!kLittleEndianHost) err.fail("big-endian hosts are not supported");
 
   Fd fd(::open(path.c_str(), O_RDONLY | O_CLOEXEC));
   if (fd.get() < 0) err.fail_errno("cannot open", errno);
@@ -446,36 +478,35 @@ LoadedIndex LoadedIndex::open(const std::string& path, const LoadOptions& option
   if (::fstat(fd.get(), &st) != 0) err.fail_errno("cannot stat", errno);
   if (!S_ISREG(st.st_mode)) err.fail("not a regular file");
   const uint64_t size = static_cast<uint64_t>(st.st_size);
-  if (size < kHeaderSize) {
+  if (size < kHeaderSize) {  // also keeps a zero-length mmap from being attempted
     err.fail("file has " + std::to_string(size) + " bytes, less than the " +
              std::to_string(kHeaderSize) + "-byte header");
   }
 
-  LoadedIndex index;
-  index.dist_ = options.dist;
-  index.mode_ = options.mode;
-  index.bytes_ = size;
+  // `owner` holds the mapping or buffer, releasing it if parse() throws.
+  LoadedIndex owner;
+  owner.bytes_ = size;
   const uint8_t* file = nullptr;
   if (options.mode == LoadMode::Mmap) {
     void* m = ::mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd.get(), 0);
     if (m == MAP_FAILED) err.fail_errno("mmap failed", errno);
-    index.map_ = m;
+    owner.map_ = m;
     file = static_cast<const uint8_t*>(m);
   } else {
     try {
-      index.buffer_.reset(
+      owner.buffer_.reset(
           static_cast<uint8_t*>(::operator new(size, std::align_val_t{kSectionAlign})));
     } catch (const std::bad_alloc&) {
       err.fail("cannot allocate " + std::to_string(size) + " bytes");
     }
-    read_all(fd.get(), index.buffer_.get(), size, err);
-    file = index.buffer_.get();
+    read_all(fd.get(), owner.buffer_.get(), size, err);
+    file = owner.buffer_.get();
   }
 
-  const Header h = decode_header(file, size, err);
-  index.view_ = make_view(file, h);
-  index.ef_construction_ = h.ef_construction;
-  if (options.validate_deep) validate_deep(index.view_, h, err);
+  LoadedIndex index = parse(file, size, options, path);
+  index.mode_ = options.mode;
+  index.map_ = std::exchange(owner.map_, nullptr);
+  index.buffer_ = std::move(owner.buffer_);
   return index;
 }
 

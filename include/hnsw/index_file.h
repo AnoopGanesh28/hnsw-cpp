@@ -35,8 +35,9 @@ class IndexFileError : public std::runtime_error {
 };
 
 enum class LoadMode {
-  Mmap,  // map the file read-only (PROT_READ, MAP_PRIVATE); search runs on the mapping
-  Read,  // read the whole file into a 64-byte-aligned heap buffer
+  Mmap,      // map the file read-only (PROT_READ, MAP_PRIVATE); search runs on the mapping
+  Read,      // read the whole file into a 64-byte-aligned heap buffer
+  Borrowed,  // from_memory: search runs on the caller's bytes; not accepted by open()
 };
 
 struct LoadOptions {
@@ -69,8 +70,16 @@ struct LoadOptions {
 class LoadedIndex {
  public:
   // Throws IndexFileError if the file cannot be read or fails validation,
-  // std::invalid_argument if options.dist is null.
+  // std::invalid_argument if options.dist is null or options.mode is Borrowed.
   static LoadedIndex open(const std::string& path, const LoadOptions& options = {});
+
+  // Validates the bytes of an index file already in memory, exactly as open()
+  // validates a file, and returns an index that borrows them (mode() is
+  // Borrowed; options.mode is ignored). `data` must be 64-byte aligned, and
+  // the bytes must stay valid and unchanged while the index (or one moved from
+  // it) is alive. Throws as open() does, and IndexFileError if `data` is not
+  // 64-byte aligned.
+  static LoadedIndex from_memory(const void* data, size_t size, const LoadOptions& options = {});
 
   LoadedIndex(LoadedIndex&& other) noexcept;
   LoadedIndex& operator=(LoadedIndex&& other) noexcept;
@@ -110,6 +119,9 @@ class LoadedIndex {
   };
 
   LoadedIndex() = default;
+  // The validation core shared by open() and from_memory(); `name` labels errors.
+  static LoadedIndex parse(const uint8_t* data, size_t size, const LoadOptions& options,
+                           const std::string& name);
   void release() noexcept;
 
   GraphView view_;
@@ -118,7 +130,7 @@ class LoadedIndex {
   LoadMode mode_ = LoadMode::Mmap;
   void* map_ = nullptr;  // Mmap mode: the mapping, bytes_ long
   std::unique_ptr<uint8_t, AlignedFree> buffer_;  // Read mode
-  size_t bytes_ = 0;
+  size_t bytes_ = 0;     // size of the file image
 };
 
 }  // namespace hnsw

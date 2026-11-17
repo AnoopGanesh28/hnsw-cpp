@@ -9,6 +9,8 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <memory>
+#include <new>
 #include <random>
 #include <string>
 #include <vector>
@@ -57,6 +59,27 @@ inline uint64_t section_bytes(const std::vector<uint8_t>& f, int s) {
 inline void fix_crc(std::vector<uint8_t>& f) {
   set_field<uint32_t>(f, hdr::kCrc, crc32_bitwise(f.data(), hdr::kCrc));
 }
+
+// A copy of `size` bytes in a 64-byte-aligned heap block of exactly that size
+// (so ASan flags any read past the end), for LoadedIndex::from_memory.
+class AlignedBytes {
+ public:
+  AlignedBytes(const uint8_t* data, size_t size)
+      : size_(size), data_(static_cast<uint8_t*>(::operator new(size, std::align_val_t{64}))) {
+    if (size_ > 0) std::memcpy(data_.get(), data, size_);
+  }
+  explicit AlignedBytes(const std::vector<uint8_t>& bytes)
+      : AlignedBytes(bytes.data(), bytes.size()) {}
+  const uint8_t* data() const { return data_.get(); }
+  size_t size() const { return size_; }
+
+ private:
+  struct Free {
+    void operator()(uint8_t* p) const { ::operator delete(p, std::align_val_t{64}); }
+  };
+  size_t size_;
+  std::unique_ptr<uint8_t, Free> data_;
+};
 
 inline std::vector<uint8_t> read_bytes(const std::string& path) {
   std::ifstream in(path, std::ios::binary);

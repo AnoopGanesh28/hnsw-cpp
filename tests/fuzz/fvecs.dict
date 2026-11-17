@@ -1,0 +1,8 @@
+# libFuzzer dictionary for fuzz_fvecs. Integers are little-endian.
+dim_1="\x01\x00\x00\x00"
+dim_0="\x00\x00\x00\x00"
+dim_minus_one="\xff\xff\xff\xff"
+dim_i32_max="\xff\xff\xff\x7f"
+dim_i32_min="\x00\x00\x00\x80"
+dim_2_30="\x00\x00\x00\x40"
+float_nan="\x00\x00\xc0\x7f"

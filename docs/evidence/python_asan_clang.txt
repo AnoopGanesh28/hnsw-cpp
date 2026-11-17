@@ -1,6 +1,6 @@
 # scripts/sanitize_python.sh clang
-date: 2026-11-17T05:13:40Z
-commit: 780fc079be295a96b4cc595b4ca61624c5430427 (with uncommitted changes)
+date: 2026-11-17T05:30:54Z
+commit: 0be749ffc43df5fa3139a4a5d91a6b5490be3554 (with uncommitted changes)
 python: Python 3.14.4
 module: build-san-clang-address/python/hnsw_cpp/_core.cpython-314-x86_64-linux-gnu.so
 ASan report hooks in the module: 12
@@ -42,7 +42,7 @@ test_shape_and_dim (test_hnsw_cpp.Validation.test_shape_and_dim) ... ok
 test_wrong_type_and_dtype (test_hnsw_cpp.Validation.test_wrong_type_and_dtype) ... ok
 
 ----------------------------------------------------------------------
-Ran 33 tests in 7.840s
+Ran 33 tests in 8.791s
 
 OK
 added 5000 vectors, index.size = 5000

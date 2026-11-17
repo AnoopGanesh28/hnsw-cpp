@@ -23,7 +23,9 @@ using test::hdr::kUpperOffsets;
 
 namespace {
 
-constexpr LoadMode kModes[] = {LoadMode::Mmap, LoadMode::Read};
+// Borrowed: the file's bytes are copied to an aligned buffer and loaded with
+// LoadedIndex::from_memory.
+constexpr LoadMode kModes[] = {LoadMode::Mmap, LoadMode::Read, LoadMode::Borrowed};
 
 enum class Outcome { kThrew, kLoaded, kWrongException };
 
@@ -32,8 +34,14 @@ Outcome try_load(const std::string& path, LoadMode mode, std::string* message = 
   LoadOptions opt;
   opt.mode = mode;
   try {
-    const LoadedIndex index = LoadedIndex::open(path, opt);
-    test::probe_searches(index);
+    if (mode == LoadMode::Borrowed) {
+      const test::AlignedBytes bytes(test::read_bytes(path));
+      const LoadedIndex index = LoadedIndex::from_memory(bytes.data(), bytes.size(), opt);
+      test::probe_searches(index);
+    } else {
+      const LoadedIndex index = LoadedIndex::open(path, opt);
+      test::probe_searches(index);
+    }
     return Outcome::kLoaded;
   } catch (const IndexFileError& e) {
     if (message != nullptr) *message = e.what();

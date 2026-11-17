@@ -304,6 +304,51 @@ static void test_shallow_only_and_accessors() {
   CHECK_THROWS(LoadedIndex::open(dir.path()), IndexFileError, "not a regular file");
 }
 
+// from_memory validates exactly as open() does and searches the caller's bytes.
+static void test_from_memory() {
+  const TempDir dir;
+  const std::string path = dir.file("idx");
+  for (size_t n : {0u, 1u, 400u}) {
+    const HnswIndex index = test::build_exact(n, 7, 8, 40, 3, best_l2_squared());
+    index.save(path);
+    const std::vector<uint8_t> bytes = test::read_bytes(path);
+    const test::AlignedBytes copy(bytes);
+    for (bool deep : {true, false}) {
+      LoadOptions opt;
+      opt.validate_deep = deep;
+      opt.mode = LoadMode::Read;  // ignored
+      const LoadedIndex loaded = LoadedIndex::from_memory(copy.data(), copy.size(), opt);
+      CHECK(loaded.mode() == LoadMode::Borrowed);
+      CHECK_EQ(loaded.file_size(), bytes.size());
+      CHECK(n == 0 || loaded.view().base == copy.data() + test::section_offset(bytes, test::hdr::kArena));
+      check_same(index, loaded);
+    }
+  }
+
+  // An image one byte into a 64-byte-aligned block is misaligned.
+  std::vector<uint8_t> shifted(1, 0);
+  const std::vector<uint8_t> bytes = test::read_bytes(path);
+  shifted.insert(shifted.end(), bytes.begin(), bytes.end());
+  const test::AlignedBytes block(shifted);
+  CHECK_THROWS(LoadedIndex::from_memory(block.data() + 1, bytes.size()), IndexFileError,
+               "64-byte aligned");
+  CHECK_THROWS(LoadedIndex::from_memory(block.data(), 191), IndexFileError, "less than");
+  std::vector<uint8_t> bad = bytes;
+  bad[0] ^= 1;
+  const test::AlignedBytes bad_copy(bad);
+  CHECK_THROWS(LoadedIndex::from_memory(bad_copy.data(), bad_copy.size()), IndexFileError,
+               "hnsw index '<memory>': bad magic");
+
+  LoadOptions borrowed;
+  borrowed.mode = LoadMode::Borrowed;
+  CHECK_THROWS(LoadedIndex::open(path, borrowed), std::invalid_argument, "Mmap or Read");
+  LoadOptions null_dist;
+  null_dist.dist = nullptr;
+  const test::AlignedBytes copy(bytes);
+  CHECK_THROWS(LoadedIndex::from_memory(copy.data(), copy.size(), null_dist),
+               std::invalid_argument, "null");
+}
+
 static void test_save_limits() {
   const TempDir dir;
   CHECK_THROWS(HnswIndex(format::kMaxDim + 1).save(dir.file("a")), IndexFileError, "dim");
@@ -327,6 +372,7 @@ int main() {
   test_overwrite_while_mapped();
   test_load_twice_and_move();
   test_shallow_only_and_accessors();
+  test_from_memory();
   test_save_limits();
   return test_finish();
 }

@@ -102,6 +102,12 @@ unused ids zero). The section length is `4 * (1 + M) * (sum of all node levels)`
 All failures throw `hnsw::IndexFileError` (derived from `std::runtime_error`), with a
 message naming the file and the problem.
 
+`LoadedIndex::from_memory(data, size, options)` runs exactly the same checks on a file
+image already in memory, with `size` in place of the real file size; `data` must be
+64-byte aligned (checked), and the index borrows the bytes. `open` maps or reads the
+file and then calls the same validation code, which is also what the loader fuzz target
+(`tests/fuzz/fuzz_loader.cpp`) exercises.
+
 **Shallow validation (always, O(1)).** The real file size from `fstat` is the ground
 truth: the loader maps or allocates exactly that many bytes and never sizes anything
 from an unchecked header field. In order:

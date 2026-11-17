@@ -70,6 +70,15 @@ if(NOT HNSW_SANITIZE STREQUAL "off")
   endif()
 endif()
 
+option(HNSW_BUILD_FUZZ "Build the libFuzzer targets in tests/fuzz (clang, HNSW_SANITIZE=address,undefined)" OFF)
+if(HNSW_BUILD_FUZZ)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR NOT HNSW_SANITIZE STREQUAL "address,undefined")
+    message(FATAL_ERROR "HNSW_BUILD_FUZZ=ON needs clang and -DHNSW_SANITIZE=address,undefined")
+  endif()
+  # Coverage instrumentation everywhere; only the fuzz targets link libFuzzer.
+  add_compile_options(-fsanitize=fuzzer-no-link)
+endif()
+
 add_library(hnsw STATIC
   src/io.cpp
   src/distance.cpp
@@ -124,6 +133,8 @@ hnsw_add_test(test_thread_pool)
 hnsw_add_test(test_batch)
 hnsw_add_test(test_concurrent_search)
 target_compile_options(test_golden PRIVATE ${HNSW_STRICT_FP})
+
+add_subdirectory(tests/fuzz)
 
 if(HNSW_BUILD_PYTHON)
   # The extension is a shared object that links the static library.
