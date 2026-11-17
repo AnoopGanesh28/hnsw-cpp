@@ -1,0 +1,89 @@
+# Fuzzer effectiveness check: a bug planted in the loader, fuzz_loader run from the seeds only
+start: 2026-11-17T06:07:14Z
+base commit: 8fac5b26d0a97f96603d916edb0e047ced563579
+planted change (removed from validate_deep, src/index_file.cpp):
+diff --git a/src/index_file.cpp b/src/index_file.cpp
+index 8d93729..34c9003 100644
+--- a/src/index_file.cpp
++++ b/src/index_file.cpp
+@@ -334,10 +334,6 @@ void validate_deep(const GraphView& g, const Header& h, const Errors& err) {
+                  std::to_string(nb.count) + " links, cap " + std::to_string(g.layout.max_links(l)));
+       }
+       for (uint32_t x : nb) {
+-        if (x >= n) {
+-          err.fail(node + std::to_string(id) + " level " + std::to_string(l) + " links invalid id " +
+-                   std::to_string(x));
+-        }
+         if (x == id) err.fail(node + std::to_string(id) + " level " + std::to_string(l) + " has a self-loop");
+         if (g.levels[x] < l) {
+           err.fail(node + std::to_string(id) + " level " + std::to_string(l) + " links node " +
+command: fuzz_loader -fork=4 -max_total_time=300 -timeout=10 -dict=tests/fuzz/loader.dict <new corpus> seeds/loader
+
+INFO: found LLVMFuzzerCustomMutator (0x594981ea1898). Disabling -len_control by default.
+Dictionary: 27 entries
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3897733970
+INFO: Loaded 1 modules   (1978 inline 8-bit counters): 1978 [0x594981f10330, 0x594981f10aea), 
+INFO: Loaded 1 PC tables (1978 PCs): 1978 [0x594981f10af0,0x594981f18690), 
+INFO: -fork=4: fuzzing in separate process(s)
+INFO: -fork=4: 12 seed inputs, starting to fuzz in /tmp/libFuzzerTemp.FuzzWithFork99555.dir
+#10: cov: 492 ft: 796 corp: 12 exec/s: 0 oom/timeout/crash: 0/0/0 time: 0s job: 2 dft_time: 0
+==99555==WARNING: invalid path to external symbolizer!
+==99555==WARNING: Failed to use and restart external symbolizer!
+  NEW_FUNC: 0x594981eb0b48  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x17cb48) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+INFO: log from the inner process:
+INFO: found LLVMFuzzerCustomMutator (0x57ddf352b898). Disabling -len_control by default.
+Dictionary: 27 entries
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3953346285
+INFO: Loaded 1 modules   (1978 inline 8-bit counters): 1978 [0x57ddf359a330, 0x57ddf359aaea), 
+INFO: Loaded 1 PC tables (1978 PCs): 1978 [0x57ddf359aaf0,0x57ddf35a2690), 
+INFO:        0 files found in /tmp/libFuzzerTemp.FuzzWithFork99555.dir/C2
+INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 5936 bytes
+INFO: seed corpus: files: 3 min: 384b max: 5936b total: 12256b rss: 34Mb
+#6	INITED cov: 438 ft: 495 corp: 3/12256b exec/s: 0 rss: 36Mb
+#7	NEW    cov: 451 ft: 509 corp: 4/12641b lim: 5936 exec/s: 0 rss: 36Mb L: 385/5936 MS: 2 InsertByte-Custom-
+#8	NEW    cov: 461 ft: 550 corp: 5/13025b lim: 5936 exec/s: 0 rss: 37Mb L: 384/5936 MS: 2 CopyPart-Custom-
+#9	NEW    cov: 470 ft: 567 corp: 6/13231b lim: 5936 exec/s: 0 rss: 37Mb L: 206/5936 MS: 2 EraseBytes-Custom-
+AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==99570==ERROR: AddressSanitizer: SEGV on unknown address 0x7a0e846fddcf (pc 0x57ddf3532d0c bp 0x7ffd2b95cbf0 sp 0x7ffd2b95c700 T0)
+==99570==The signal is caused by a READ memory access.
+==99570==WARNING: invalid path to external symbolizer!
+==99570==WARNING: Failed to use and restart external symbolizer!
+    #0 0x57ddf3532d0c  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x174d0c) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #1 0x57ddf3537830  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x179830) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #2 0x57ddf352524f  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x16724f) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #3 0x57ddf3420daf  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x62daf) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #4 0x57ddf34203d9  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x623d9) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #5 0x57ddf3421e39  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x63e39) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #6 0x57ddf3422975  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x64975) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #7 0x57ddf340f6e0  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x516e0) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #8 0x57ddf343a3e6  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x7c3e6) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+    #9 0x7bde4622a600  (/usr/lib/x86_64-linux-gnu/libc.so.6+0x2a600) (BuildId: 9851d79b1f32e900a27f8d0a68e29d750303f0c6)
+    #10 0x7bde4622a717  (/usr/lib/x86_64-linux-gnu/libc.so.6+0x2a717) (BuildId: 9851d79b1f32e900a27f8d0a68e29d750303f0c6)
+    #11 0x57ddf3403ee4  (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x45ee4) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978)
+
+==99570==Register values:
+rax = 0x0000000000000000  rbx = 0x00007ffd2b95c700  rcx = 0x0000000000000023  rdx = 0x0000000000000df8  
+rdi = 0x0000000000000200  rsi = 0x0000000800000000  rbp = 0x00007ffd2b95cbf0  rsp = 0x00007ffd2b95c700  
+ r8 = 0x000057ddf35a5000   r9 = 0x0000000000000023  r10 = 0x00000efbc892d006  r11 = 0x0000000000000000  
+r12 = 0x00000efc48925001  r13 = 0x00007a0e846fddcf  r14 = 0x0000000000000000  r15 = 0x00007a0e455fddc0  
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: SEGV (/home/anoop/hnsw-cpp/build-fuzz-planted/tests/fuzz/fuzz_loader+0x174d0c) (BuildId: f9a18a4c39715d4da54b8cc71739a12b02e9e978) 
+==99570==ABORTING
+MS: 2 CrossOver-Custom-; base unit: 228990c103a5a476aea67cca885ceb05f15375e6
+artifact_prefix='artifacts/'; Test unit written to artifacts/crash-4d559066afc736c40b7c14ebf986084531094c85
+stat::number_of_executed_units: 10
+stat::average_exec_per_sec:     0
+stat::new_units_added:          3
+stat::slowest_unit_time_sec:    0
+stat::peak_rss_mb:              37
+INFO: exiting: 1 time: 0s
+
+end: 2026-11-17T06:07:14Z
+fuzzer exit status: 1
+wall seconds until exit: 0
+artifacts: crash-4d559066afc736c40b7c14ebf986084531094c85
+restored: cmp src/index_file.cpp against the pre-plant backup: identical; git diff HEAD -- src: empty
+crashing frame (addr2line, no llvm-symbolizer installed): validate_deep inlined into LoadedIndex::parse, src/index_file.cpp:338 (g.levels[x] with an unchecked link id)

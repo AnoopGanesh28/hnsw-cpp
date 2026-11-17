@@ -1,0 +1,95 @@
+# scripts/run_fuzz.sh fvecs 300 4
+start: 2026-11-17T06:01:43Z
+commit: 8fac5b26d0a97f96603d916edb0e047ced563579 (with uncommitted changes)
+compiler: Ubuntu clang version 21.1.8 (6ubuntu1)
+cpu: Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz, 8 logical CPUs
+compile flags:  -O1 -g -std=c++17 -Wall -Wextra -march=native -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -fsanitize=fuzzer-no-link
+command: fuzz_fvecs -fork=4 -max_total_time=300 -timeout=10 -dict=/home/anoop/hnsw-cpp/tests/fuzz/fvecs.dict -artifact_prefix=/home/anoop/hnsw-cpp/build-fuzz/fuzz-run/fvecs/artifacts/ <new corpus> seeds/fvecs corpus/fvecs
+
+Dictionary: 7 entries
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3783018165
+INFO: Loaded 1 modules   (720 inline 8-bit counters): 720 [0x5e242d7fee20, 0x5e242d7ff0f0), 
+INFO: Loaded 1 PC tables (720 PCs): 720 [0x5e242d7ff0f0,0x5e242d801df0), 
+INFO: -fork=4: fuzzing in separate process(s)
+INFO: -fork=4: 6 seed inputs, starting to fuzz in /tmp/libFuzzerTemp.FuzzWithFork97889.dir
+#10568: cov: 143 ft: 210 corp: 6 exec/s: 5284 oom/timeout/crash: 0/0/0 time: 2s job: 1 dft_time: 0
+#27503: cov: 158 ft: 264 corp: 14 exec/s: 5645 oom/timeout/crash: 0/0/0 time: 3s job: 2 dft_time: 0
+#52006: cov: 160 ft: 270 corp: 16 exec/s: 6125 oom/timeout/crash: 0/0/0 time: 4s job: 3 dft_time: 0
+#84686: cov: 160 ft: 286 corp: 17 exec/s: 6536 oom/timeout/crash: 0/0/0 time: 5s job: 4 dft_time: 0
+#124215: cov: 160 ft: 296 corp: 22 exec/s: 6588 oom/timeout/crash: 0/0/0 time: 8s job: 5 dft_time: 0
+#170409: cov: 160 ft: 300 corp: 23 exec/s: 6599 oom/timeout/crash: 0/0/0 time: 10s job: 6 dft_time: 0
+#222461: cov: 160 ft: 300 corp: 23 exec/s: 6506 oom/timeout/crash: 0/0/0 time: 12s job: 7 dft_time: 0
+#281966: cov: 160 ft: 305 corp: 24 exec/s: 6611 oom/timeout/crash: 0/0/0 time: 14s job: 8 dft_time: 0
+#347361: cov: 160 ft: 305 corp: 24 exec/s: 6539 oom/timeout/crash: 0/0/0 time: 18s job: 9 dft_time: 0
+#421475: cov: 160 ft: 305 corp: 24 exec/s: 6737 oom/timeout/crash: 0/0/0 time: 21s job: 10 dft_time: 0
+#499895: cov: 160 ft: 329 corp: 27 exec/s: 6535 oom/timeout/crash: 0/0/0 time: 24s job: 11 dft_time: 0
+#587466: cov: 160 ft: 331 corp: 28 exec/s: 6736 oom/timeout/crash: 0/0/0 time: 27s job: 12 dft_time: 0
+#683056: cov: 160 ft: 331 corp: 28 exec/s: 6827 oom/timeout/crash: 0/0/0 time: 32s job: 13 dft_time: 0
+#786099: cov: 160 ft: 331 corp: 28 exec/s: 6869 oom/timeout/crash: 0/0/0 time: 36s job: 14 dft_time: 0
+#895081: cov: 160 ft: 351 corp: 29 exec/s: 6811 oom/timeout/crash: 0/0/0 time: 40s job: 15 dft_time: 0
+#1010886: cov: 160 ft: 351 corp: 29 exec/s: 6812 oom/timeout/crash: 0/0/0 time: 44s job: 16 dft_time: 0
+#1135331: cov: 160 ft: 351 corp: 29 exec/s: 6913 oom/timeout/crash: 0/0/0 time: 50s job: 17 dft_time: 0
+#1266221: cov: 160 ft: 351 corp: 29 exec/s: 6888 oom/timeout/crash: 0/0/0 time: 55s job: 18 dft_time: 0
+#1404542: cov: 160 ft: 351 corp: 29 exec/s: 6916 oom/timeout/crash: 0/0/0 time: 60s job: 19 dft_time: 0
+#1549528: cov: 160 ft: 351 corp: 29 exec/s: 6904 oom/timeout/crash: 0/0/0 time: 65s job: 20 dft_time: 0
+#1700631: cov: 160 ft: 351 corp: 29 exec/s: 6868 oom/timeout/crash: 0/0/0 time: 72s job: 21 dft_time: 0
+#1855404: cov: 160 ft: 355 corp: 31 exec/s: 6729 oom/timeout/crash: 0/0/0 time: 78s job: 22 dft_time: 0
+#2017084: cov: 160 ft: 355 corp: 31 exec/s: 6736 oom/timeout/crash: 0/0/0 time: 84s job: 23 dft_time: 0
+#2185496: cov: 160 ft: 355 corp: 31 exec/s: 6736 oom/timeout/crash: 0/0/0 time: 90s job: 24 dft_time: 0
+#2357772: cov: 160 ft: 355 corp: 31 exec/s: 6626 oom/timeout/crash: 0/0/0 time: 98s job: 25 dft_time: 0
+#2539907: cov: 160 ft: 355 corp: 31 exec/s: 6745 oom/timeout/crash: 0/0/0 time: 105s job: 26 dft_time: 0
+#2732723: cov: 160 ft: 355 corp: 31 exec/s: 6886 oom/timeout/crash: 0/0/0 time: 112s job: 27 dft_time: 0
+#2930404: cov: 160 ft: 355 corp: 31 exec/s: 6816 oom/timeout/crash: 0/0/0 time: 119s job: 28 dft_time: 0
+#3137721: cov: 160 ft: 355 corp: 31 exec/s: 6910 oom/timeout/crash: 0/0/0 time: 129s job: 29 dft_time: 0
+#3355129: cov: 160 ft: 355 corp: 31 exec/s: 7013 oom/timeout/crash: 0/0/0 time: 137s job: 30 dft_time: 0
+#3580373: cov: 160 ft: 355 corp: 31 exec/s: 7038 oom/timeout/crash: 0/0/0 time: 145s job: 31 dft_time: 0
+#3813431: cov: 162 ft: 357 corp: 32 exec/s: 7062 oom/timeout/crash: 0/0/0 time: 152s job: 32 dft_time: 0
+#4051682: cov: 162 ft: 357 corp: 32 exec/s: 7007 oom/timeout/crash: 0/0/0 time: 163s job: 33 dft_time: 0
+#4294082: cov: 162 ft: 357 corp: 32 exec/s: 6925 oom/timeout/crash: 0/0/0 time: 172s job: 34 dft_time: 0
+#4543989: cov: 162 ft: 357 corp: 32 exec/s: 6941 oom/timeout/crash: 0/0/0 time: 181s job: 35 dft_time: 0
+#4796832: cov: 162 ft: 359 corp: 33 exec/s: 6833 oom/timeout/crash: 0/0/0 time: 190s job: 36 dft_time: 0
+#5056333: cov: 162 ft: 359 corp: 33 exec/s: 6828 oom/timeout/crash: 0/0/0 time: 201s job: 37 dft_time: 0
+#5332055: cov: 162 ft: 359 corp: 33 exec/s: 7069 oom/timeout/crash: 0/0/0 time: 211s job: 38 dft_time: 0
+#5611663: cov: 162 ft: 359 corp: 33 exec/s: 6990 oom/timeout/crash: 0/0/0 time: 221s job: 39 dft_time: 0
+#5898781: cov: 162 ft: 359 corp: 33 exec/s: 7002 oom/timeout/crash: 0/0/0 time: 231s job: 40 dft_time: 0
+#6197078: cov: 162 ft: 359 corp: 33 exec/s: 7102 oom/timeout/crash: 0/0/0 time: 243s job: 41 dft_time: 0
+#6502600: cov: 162 ft: 359 corp: 33 exec/s: 7105 oom/timeout/crash: 0/0/0 time: 254s job: 42 dft_time: 0
+#6808959: cov: 162 ft: 359 corp: 33 exec/s: 6962 oom/timeout/crash: 0/0/0 time: 265s job: 43 dft_time: 0
+#7123726: cov: 162 ft: 359 corp: 33 exec/s: 6994 oom/timeout/crash: 0/0/0 time: 276s job: 44 dft_time: 0
+#7443570: cov: 162 ft: 359 corp: 33 exec/s: 6953 oom/timeout/crash: 0/0/0 time: 289s job: 45 dft_time: 0
+#7777855: cov: 162 ft: 359 corp: 33 exec/s: 7112 oom/timeout/crash: 0/0/0 time: 301s job: 46 dft_time: 0
+INFO: fuzzed for 301 seconds, wrapping up soon
+INFO: exiting: 0 time: 301s
+
+end: 2026-11-17T06:06:45Z
+fuzzer exit status: 0
+crash artifacts: 0
+
+# merge: fuzz_fvecs -merge=1 <seeds> <new corpus> corpus/fvecs
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 535552412
+INFO: Loaded 1 modules   (720 inline 8-bit counters): 720 [0x6157182d7e20, 0x6157182d80f0), 
+INFO: Loaded 1 PC tables (720 PCs): 720 [0x6157182d80f0,0x6157182dadf0), 
+MERGE-OUTER: 33 files, 6 in the initial corpus, 0 processed earlier
+MERGE-OUTER: attempt 1
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 550027015
+INFO: Loaded 1 modules   (720 inline 8-bit counters): 720 [0x638a2a5d9e20, 0x638a2a5da0f0), 
+INFO: Loaded 1 PC tables (720 PCs): 720 [0x638a2a5da0f0,0x638a2a5dcdf0), 
+INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 1048576 bytes
+MERGE-INNER: using the control file '/tmp/libFuzzerTemp.Merge99292.txt'
+MERGE-INNER: 33 total files; 0 processed earlier; will process 33 files now
+#1	pulse  cov: 76 ft: 77 exec/s: 0 rss: 33Mb
+#2	pulse  cov: 114 ft: 116 exec/s: 0 rss: 33Mb
+#4	pulse  cov: 132 ft: 170 exec/s: 0 rss: 33Mb
+#6	LOADED cov: 143 ft: 210 exec/s: 0 rss: 34Mb
+#8	pulse  cov: 156 ft: 225 exec/s: 0 rss: 34Mb
+#16	pulse  cov: 160 ft: 270 exec/s: 0 rss: 34Mb
+#32	pulse  cov: 162 ft: 356 exec/s: 0 rss: 35Mb
+#33	DONE   cov: 162 ft: 358 exec/s: 0 rss: 35Mb
+MERGE-OUTER: successful in 1 attempt(s)
+MERGE-OUTER: the control file has 6176 bytes
+MERGE-OUTER: consumed 0Mb (33Mb rss) to parse the control file
+MERGE-OUTER: 23 new files with 148 new features added; 19 new coverage edges
+corpus after merge: 23 files, 3039 bytes (beyond the seeds)

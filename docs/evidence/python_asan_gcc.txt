@@ -1,6 +1,6 @@
 # scripts/sanitize_python.sh gcc
-date: 2026-11-17T05:30:39Z
-commit: 0be749ffc43df5fa3139a4a5d91a6b5490be3554 (with uncommitted changes)
+date: 2026-11-17T14:52:50Z
+commit: 8fac5b26d0a97f96603d916edb0e047ced563579 (with uncommitted changes)
 python: Python 3.14.4
 module: build-san-gcc-address/python/hnsw_cpp/_core.cpython-314-x86_64-linux-gnu.so
 ASan report hooks in the module: 12
@@ -42,7 +42,7 @@ test_shape_and_dim (test_hnsw_cpp.Validation.test_shape_and_dim) ... ok
 test_wrong_type_and_dtype (test_hnsw_cpp.Validation.test_wrong_type_and_dtype) ... ok
 
 ----------------------------------------------------------------------
-Ran 33 tests in 12.169s
+Ran 33 tests in 11.090s
 
 OK
 added 5000 vectors, index.size = 5000

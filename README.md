@@ -15,7 +15,8 @@ Work in progress. See docs/TASK.md.
 | M5a: benchmark infrastructure (dataset scripts, ground-truth validation, build/search/load-time harness with hnswlib baseline, tests) | done |
 | M5b: SIFT1M runs, ablation, profile, plot, results table | done (see [Results](#results)) |
 | M6: Python bindings (pybind11), tests and example | done (see [Python bindings](#python-bindings-m6)) |
-| M7 | not started |
+| M7a: sanitizer runs (ASan, UBSan, TSan with GCC and clang), libFuzzer targets for the loader and the vector readers | done (see [Sanitizers and fuzzing](#sanitizers-and-fuzzing-m7a)) |
+| M7b: CI, design doc, README | pending |
 
 Benchmark results are in [Results](#results). The tools and the method are described in
 [bench/README.md](bench/README.md). SIFT1M downloads and validates on this machine
@@ -42,7 +43,8 @@ The distance kernel is chosen at run time: AVX2+FMA when the CPU supports it, el
 same search API and bit-identical results. The byte-level format and every check the
 loader makes are in [docs/FORMAT.md](docs/FORMAT.md). Files are treated as untrusted:
 with `validate_deep` on (the default) any file that loads is safe to search; with it
-off, only load files you trust.
+off, only load files you trust. `LoadedIndex::from_memory(data, size, options)` runs the same
+validation on a file image already in memory (64-byte aligned) and searches it in place.
 
 ### Concurrent search (M4)
 
@@ -75,8 +77,25 @@ python -m unittest discover -s python/tests
 
 In-tree: `cmake -B build -DHNSW_BUILD_PYTHON=ON` (needs pybind11 and Python development files)
 registers `python_tests` and `python_quickstart` with ctest, except in sanitizer builds, where the
-extension is built but not run. The Python package makes no performance claim; the benchmarks
+extension is built but not run by ctest (`scripts/sanitize_python.sh` runs it under ASan). The Python package makes no performance claim; the benchmarks
 below measure the C++ library only.
+
+### Sanitizers and fuzzing (M7a)
+
+`scripts/sanitize.sh <gcc|clang> <address|undefined|address+undefined|thread>` builds a fresh
+tree with the benchmark tools and the Python extension and runs the full ctest suite; UBSan
+aborts on the first finding and ASan runs with leak detection. `scripts/sanitize_python.sh
+<gcc|clang>` runs the Python tests on the ASan-built extension with the runtime preloaded.
+The saved outputs of every combination are in [docs/evidence](docs/evidence).
+
+libFuzzer targets for the index loader and the fvecs/ivecs readers live in
+[tests/fuzz](tests/fuzz/README.md) (`-DHNSW_BUILD_FUZZ=ON`, clang, ASan+UBSan). The loader
+target drives the same validation code as `LoadedIndex::open` and searches every image that
+deep validation accepts. Seeds, the minimized corpus and past crashes are replayed by ctest in
+every build. Fuzz run logs and a summary parsed from them are in docs/evidence.
+
+Sanitizer findings in the hnswlib baseline (benchmark only, not our code) are exempted for its
+translation unit; the reasons are in bench/CMakeLists.txt.
 
 ## Results
 

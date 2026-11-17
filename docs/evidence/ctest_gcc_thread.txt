@@ -1,6 +1,6 @@
 # scripts/sanitize.sh gcc thread
-date: 2026-11-17T05:26:12Z
-commit: 0be749ffc43df5fa3139a4a5d91a6b5490be3554 (with uncommitted changes)
+date: 2026-11-17T14:48:38Z
+commit: 8fac5b26d0a97f96603d916edb0e047ced563579 (with uncommitted changes)
 compiler: g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
 kernel: Linux 6.18.33.1-microsoft-standard-WSL2
 HNSW_SANITIZE=thread HNSW_BUILD_BENCH=ON HNSW_BUILD_PYTHON=ON
@@ -14,54 +14,54 @@ Test project /home/anoop/hnsw-cpp/build-san-gcc-thread
       Start  2: test_io
       Start  3: test_brute_force
       Start  4: test_recall
- 1/25 Test  #2: test_io ..........................   Passed    0.02 sec
+ 1/25 Test  #1: test_distance ....................   Passed    0.02 sec
       Start  5: test_hnsw_invariants
- 2/25 Test  #1: test_distance ....................   Passed    0.02 sec
+ 2/25 Test  #2: test_io ..........................   Passed    0.02 sec
       Start  6: test_hnsw_recall
  3/25 Test  #4: test_recall ......................   Passed    0.02 sec
       Start  7: test_hnsw_connectivity
- 4/25 Test  #3: test_brute_force .................   Passed    0.06 sec
+ 4/25 Test  #3: test_brute_force .................   Passed    0.05 sec
       Start  8: test_hnsw_heuristic
- 5/25 Test  #8: test_hnsw_heuristic ..............   Passed    0.10 sec
+ 5/25 Test  #8: test_hnsw_heuristic ..............   Passed    0.11 sec
       Start  9: test_hnsw_edge_cases
- 6/25 Test  #9: test_hnsw_edge_cases .............   Passed    0.07 sec
+ 6/25 Test  #9: test_hnsw_edge_cases .............   Passed    0.05 sec
       Start 10: test_hnsw_determinism
- 7/25 Test #10: test_hnsw_determinism ............   Passed    0.90 sec
+ 7/25 Test #10: test_hnsw_determinism ............   Passed    0.96 sec
       Start 11: test_layout
- 8/25 Test #11: test_layout ......................   Passed    0.20 sec
+ 8/25 Test #11: test_layout ......................   Passed    0.22 sec
       Start 12: test_scratch
- 9/25 Test #12: test_scratch .....................   Passed    0.46 sec
+ 9/25 Test #12: test_scratch .....................   Passed    0.48 sec
       Start 13: test_alloc_free
-10/25 Test #13: test_alloc_free ..................   Passed    2.08 sec
+10/25 Test #13: test_alloc_free ..................   Passed    2.12 sec
       Start 14: test_distance_avx2
-11/25 Test #14: test_distance_avx2 ...............   Passed    0.38 sec
+11/25 Test #14: test_distance_avx2 ...............   Passed    0.39 sec
       Start 15: test_hnsw_avx2
-12/25 Test  #5: test_hnsw_invariants .............   Passed    4.45 sec
+12/25 Test  #5: test_hnsw_invariants .............   Passed    4.48 sec
       Start 16: test_golden
-13/25 Test #16: test_golden ......................   Passed    2.48 sec
+13/25 Test #16: test_golden ......................   Passed    3.06 sec
       Start 17: test_index_file
-14/25 Test  #7: test_hnsw_connectivity ...........   Passed   17.79 sec
+14/25 Test  #7: test_hnsw_connectivity ...........   Passed   19.10 sec
       Start 18: test_index_file_corrupt
-15/25 Test  #6: test_hnsw_recall .................   Passed   19.78 sec
+15/25 Test  #6: test_hnsw_recall .................   Passed   21.08 sec
       Start 19: test_thread_pool
-16/25 Test #19: test_thread_pool .................   Passed    0.44 sec
+16/25 Test #19: test_thread_pool .................   Passed    0.45 sec
       Start 20: test_batch
-17/25 Test #20: test_batch .......................   Passed    3.71 sec
+17/25 Test #20: test_batch .......................   Passed    3.72 sec
       Start 21: test_concurrent_search
-18/25 Test #18: test_index_file_corrupt ..........   Passed    7.89 sec
+18/25 Test #18: test_index_file_corrupt ..........   Passed    8.61 sec
       Start 22: fuzz_replay_loader
-19/25 Test #22: fuzz_replay_loader ...............   Passed    0.04 sec
+19/25 Test #22: fuzz_replay_loader ...............   Passed    0.78 sec
       Start 23: fuzz_replay_fvecs
-20/25 Test #23: fuzz_replay_fvecs ................   Passed    0.03 sec
+20/25 Test #23: fuzz_replay_fvecs ................   Passed    0.04 sec
       Start 24: test_bench_util
-21/25 Test #24: test_bench_util ..................   Passed    0.34 sec
+21/25 Test #24: test_bench_util ..................   Passed    0.37 sec
       Start 25: test_bench_smoke
-22/25 Test #21: test_concurrent_search ...........   Passed    3.60 sec
-23/25 Test #17: test_index_file ..................   Passed   21.83 sec
-24/25 Test #15: test_hnsw_avx2 ...................   Passed   39.50 sec
-25/25 Test #25: test_bench_smoke .................   Passed   18.08 sec
+22/25 Test #21: test_concurrent_search ...........   Passed    3.70 sec
+23/25 Test #17: test_index_file ..................   Passed   22.44 sec
+24/25 Test #15: test_hnsw_avx2 ...................   Passed   41.77 sec
+25/25 Test #25: test_bench_smoke .................   Passed   17.88 sec
 
 100% tests passed, 0 tests failed out of 25
 
-Total Test time (real) =  44.19 sec
+Total Test time (real) =  46.80 sec
 ctest exit status: 0
