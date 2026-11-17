@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "From-scratch HNSW approximate nearest-neighbor index (squared L2) with Python bindings"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = ["numpy"]
 
 [tool.scikit-build]
