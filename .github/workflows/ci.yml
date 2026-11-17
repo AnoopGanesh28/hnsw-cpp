@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: release (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    env:
+      CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain and CPU
+        run: |
+          $CXX --version | head -n 1
+          cmake --version | head -n 1
+          grep -m1 -o -w avx2 /proc/cpuinfo || echo "no AVX2: the AVX2 tests will skip"
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=$CXX
+      - name: Build
+        run: cmake --build build -j "$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j "$(nproc)"
+
+  sanitize:
+    name: ${{ matrix.mode }} (${{ matrix.compiler }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { compiler: clang, mode: address+undefined }
+          - { compiler: clang, mode: thread }
+          - { compiler: gcc, mode: thread }
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build dependencies (hnswlib baseline, pybind11)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-dev python3-pybind11 pybind11-dev
+          bench/get_hnswlib.sh
+      # Newer kernels randomize mmap addresses over a range the sanitizer
+      # runtimes cannot handle.
+      - name: Lower mmap ASLR entropy
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Sanitizer build and full ctest suite
+        run: scripts/sanitize.sh ${{ matrix.compiler }} ${{ matrix.mode }}
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctest-${{ matrix.compiler }}-${{ matrix.mode }}
+          path: docs/evidence/ctest_*.txt
+
+  python:
+    name: python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install into a fresh virtual environment
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install .
+      # Run from outside the checkout so that only the installed package can be imported.
+      - name: Tests against the installed package
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" -c "import hnsw_cpp; print(hnsw_cpp.__file__); assert 'site-packages' in hnsw_cpp.__file__"
+          "$RUNNER_TEMP/venv/bin/python" -m unittest discover -v -s "$GITHUB_WORKSPACE/python/tests"
+      - name: Example against the installed package
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" "$GITHUB_WORKSPACE/python/examples/quickstart.py"
+
+  python-asan:
+    name: python under ASan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-dev python3-pybind11 pybind11-dev python3-numpy
+      - name: Lower mmap ASLR entropy
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: ASan build (the extension is instrumented, the interpreter is not)
+        run: scripts/sanitize.sh gcc address
+      - name: Python tests with the ASan runtime preloaded
+        run: scripts/sanitize_python.sh gcc
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-asan
+          path: docs/evidence/python_asan_gcc.txt
+
+  bench-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch the pinned hnswlib baseline
+        run: bench/get_hnswlib.sh
+      - name: Build the benchmark tools
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHNSW_BUILD_BENCH=ON
+          cmake --build build -j "$(nproc)"
+      - name: Benchmark tests (synthetic data, no SIFT)
+        run: ctest --test-dir build --output-on-failure -R bench
+
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ASAN_OPTIONS: abort_on_error=0:detect_leaks=1
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install clang and the LLVM symbolizer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang llvm
+          echo "ASAN_SYMBOLIZER_PATH=$(command -v llvm-symbolizer || ls /usr/lib/llvm-*/bin/llvm-symbolizer | tail -n 1)" >> "$GITHUB_ENV"
+      - name: Lower mmap ASLR entropy
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Build the fuzz targets
+        run: |
+          cmake -S . -B build-fuzz -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O1 -g" -DHNSW_SANITIZE=address,undefined -DHNSW_BUILD_FUZZ=ON
+          cmake --build build-fuzz -j "$(nproc)"
+      - name: Replay seeds, corpus and past crashes
+        run: ctest --test-dir build-fuzz --output-on-failure -R fuzz_replay
+      - name: Fuzz the loader for 60 seconds
+        run: |
+          mkdir -p "$RUNNER_TEMP/corpus-loader" "$RUNNER_TEMP/crashes"
+          build-fuzz/tests/fuzz/fuzz_loader -max_total_time=60 -timeout=10 \
+            -dict=tests/fuzz/loader.dict -artifact_prefix="$RUNNER_TEMP/crashes/" \
+            "$RUNNER_TEMP/corpus-loader" tests/fuzz/seeds/loader tests/fuzz/corpus/loader
+      - name: Fuzz the vector readers for 30 seconds
+        run: |
+          mkdir -p "$RUNNER_TEMP/corpus-fvecs"
+          build-fuzz/tests/fuzz/fuzz_fvecs -max_total_time=30 -timeout=10 \
+            -dict=tests/fuzz/fvecs.dict -artifact_prefix="$RUNNER_TEMP/crashes/" \
+            "$RUNNER_TEMP/corpus-fvecs" tests/fuzz/seeds/fvecs tests/fuzz/corpus/fvecs
+      - name: Upload crash inputs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-crashes
+          path: ${{ runner.temp }}/crashes/

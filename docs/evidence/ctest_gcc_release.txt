@@ -1,0 +1,286 @@
+# scripts/ctest_full.sh gcc
+date: 2026-11-17T15:02:16Z
+commit: 3454129e64a5c8878b66d0f271ce748ee70db5a3
+compiler: g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+kernel: Linux 6.18.33.1-microsoft-standard-WSL2
+CMAKE_BUILD_TYPE=Release HNSW_SANITIZE=off HNSW_BUILD_BENCH=ON HNSW_BUILD_PYTHON=ON HNSW_BUILD_FUZZ=OFF
+compile flags (test_distance):  -O3 -DNDEBUG -std=c++17 -Wall -Wextra -march=native
+
+UpdateCTestConfiguration  from :/home/anoop/hnsw-cpp/build-full-gcc/DartConfiguration.tcl
+Test project /home/anoop/hnsw-cpp/build-full-gcc
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+      Start  1: test_distance
+
+1: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_distance
+1: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+1: Test timeout computed to be: 10000000
+1: 32 checks, 0 failed
+ 1/27 Test  #1: test_distance ....................   Passed    0.00 sec
+test 2
+      Start  2: test_io
+
+2: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_io
+2: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+2: Test timeout computed to be: 10000000
+2: 25 checks, 0 failed
+ 2/27 Test  #2: test_io ..........................   Passed    0.00 sec
+test 3
+      Start  3: test_brute_force
+
+3: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_brute_force
+3: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+3: Test timeout computed to be: 10000000
+3: 9690 checks, 0 failed
+ 3/27 Test  #3: test_brute_force .................   Passed    0.00 sec
+test 4
+      Start  4: test_recall
+
+4: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_recall
+4: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+4: Test timeout computed to be: 10000000
+4: 15 checks, 0 failed
+ 4/27 Test  #4: test_recall ......................   Passed    0.00 sec
+test 5
+      Start  5: test_hnsw_invariants
+
+5: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_hnsw_invariants
+5: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+5: Test timeout computed to be: 10000000
+5: 6934 checks, 0 failed
+ 5/27 Test  #5: test_hnsw_invariants .............   Passed    0.22 sec
+test 6
+      Start  6: test_hnsw_recall
+
+6: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_hnsw_recall
+6: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+6: Test timeout computed to be: 10000000
+6: 663 checks, 0 failed
+ 6/27 Test  #6: test_hnsw_recall .................   Passed    1.40 sec
+test 7
+      Start  7: test_hnsw_connectivity
+
+7: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_hnsw_connectivity
+7: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+7: Test timeout computed to be: 10000000
+7: 12 checks, 0 failed
+ 7/27 Test  #7: test_hnsw_connectivity ...........   Passed    1.25 sec
+test 8
+      Start  8: test_hnsw_heuristic
+
+8: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_hnsw_heuristic
+8: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+8: Test timeout computed to be: 10000000
+8: 412 checks, 0 failed
+ 8/27 Test  #8: test_hnsw_heuristic ..............   Passed    0.00 sec
+test 9
+      Start  9: test_hnsw_edge_cases
+
+9: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_hnsw_edge_cases
+9: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+9: Test timeout computed to be: 10000000
+9: 198 checks, 0 failed
+ 9/27 Test  #9: test_hnsw_edge_cases .............   Passed    0.00 sec
+test 10
+      Start 10: test_hnsw_determinism
+
+10: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_hnsw_determinism
+10: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+10: Test timeout computed to be: 10000000
+10: 63 checks, 0 failed
+10/27 Test #10: test_hnsw_determinism ............   Passed    0.07 sec
+test 11
+      Start 11: test_layout
+
+11: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_layout
+11: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+11: Test timeout computed to be: 10000000
+11: 633 checks, 0 failed
+11/27 Test #11: test_layout ......................   Passed    0.01 sec
+test 12
+      Start 12: test_scratch
+
+12: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_scratch
+12: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+12: Test timeout computed to be: 10000000
+12: 468 checks, 0 failed
+12/27 Test #12: test_scratch .....................   Passed    0.03 sec
+test 13
+      Start 13: test_alloc_free
+
+13: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_alloc_free
+13: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+13: Test timeout computed to be: 10000000
+13: 183 checks, 0 failed
+13/27 Test #13: test_alloc_free ..................   Passed    0.10 sec
+test 14
+      Start 14: test_distance_avx2
+
+14: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_distance_avx2
+14: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+14: Test timeout computed to be: 10000000
+14: 5 checks, 0 failed
+14/27 Test #14: test_distance_avx2 ...............   Passed    0.01 sec
+test 15
+      Start 15: test_hnsw_avx2
+
+15: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_hnsw_avx2
+15: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+15: Test timeout computed to be: 10000000
+15: 25 checks, 0 failed
+15/27 Test #15: test_hnsw_avx2 ...................   Passed    2.70 sec
+test 16
+      Start 16: test_golden
+
+16: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_golden
+16: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+16: Test timeout computed to be: 10000000
+16: 10 checks, 0 failed
+16/27 Test #16: test_golden ......................   Passed    0.17 sec
+test 17
+      Start 17: test_index_file
+
+17: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_index_file
+17: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+17: Test timeout computed to be: 10000000
+17: 751 checks, 0 failed
+17/27 Test #17: test_index_file ..................   Passed    1.30 sec
+test 18
+      Start 18: test_index_file_corrupt
+
+18: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_index_file_corrupt
+18: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+18: Test timeout computed to be: 10000000
+18: 176 checks, 0 failed
+18/27 Test #18: test_index_file_corrupt ..........   Passed    0.52 sec
+test 19
+      Start 19: test_thread_pool
+
+19: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_thread_pool
+19: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+19: Test timeout computed to be: 10000000
+19: 285 checks, 0 failed
+19/27 Test #19: test_thread_pool .................   Passed    0.25 sec
+test 20
+      Start 20: test_batch
+
+20: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_batch
+20: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+20: Test timeout computed to be: 10000000
+20: 109 checks, 0 failed
+20/27 Test #20: test_batch .......................   Passed    0.19 sec
+test 21
+      Start 21: test_concurrent_search
+
+21: Test command: /home/anoop/hnsw-cpp/build-full-gcc/test_concurrent_search
+21: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc
+21: Test timeout computed to be: 10000000
+21: 3 checks, 0 failed
+21/27 Test #21: test_concurrent_search ...........   Passed    0.14 sec
+test 22
+      Start 22: fuzz_replay_loader
+
+22: Test command: /home/anoop/hnsw-cpp/build-full-gcc/tests/fuzz/replay_loader "/home/anoop/hnsw-cpp/tests/fuzz/seeds/loader" "/home/anoop/hnsw-cpp/tests/fuzz/corpus/loader" "/home/anoop/hnsw-cpp/tests/fuzz/crashes/loader"
+22: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc/tests/fuzz
+22: Test timeout computed to be: 10000000
+22: replayed 242 inputs
+22/27 Test #22: fuzz_replay_loader ...............   Passed    0.04 sec
+test 23
+      Start 23: fuzz_replay_fvecs
+
+23: Test command: /home/anoop/hnsw-cpp/build-full-gcc/tests/fuzz/replay_fvecs "/home/anoop/hnsw-cpp/tests/fuzz/seeds/fvecs" "/home/anoop/hnsw-cpp/tests/fuzz/corpus/fvecs" "/home/anoop/hnsw-cpp/tests/fuzz/crashes/fvecs"
+23: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc/tests/fuzz
+23: Test timeout computed to be: 10000000
+23: replayed 29 inputs
+23/27 Test #23: fuzz_replay_fvecs ................   Passed    0.00 sec
+test 24
+      Start 24: python_tests
+
+24: Test command: /usr/bin/python3 "-m" "unittest" "discover" "-s" "/home/anoop/hnsw-cpp/python/tests"
+24: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc/python
+24: Environment variables: 
+24:  PYTHONPATH=/home/anoop/hnsw-cpp/build-full-gcc/python
+24: Test timeout computed to be: 300
+24: .................................
+24: ----------------------------------------------------------------------
+24: Ran 33 tests in 3.784s
+24: 
+24: OK
+24/27 Test #24: python_tests .....................   Passed    3.90 sec
+test 25
+      Start 25: python_quickstart
+
+25: Test command: /usr/bin/python3 "/home/anoop/hnsw-cpp/python/examples/quickstart.py"
+25: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc/python
+25: Environment variables: 
+25:  PYTHONPATH=/home/anoop/hnsw-cpp/build-full-gcc/python
+25: Test timeout computed to be: 300
+25: added 5000 vectors, index.size = 5000
+25: query 0: ids [3473, 3982, 4978], squared distances [5.872591972351074, 6.208147048950195, 6.274087429046631]
+25: recall@10 vs exact brute force: 0.9750
+25: loaded index (5000 x 64) gives identical results: True
+25/27 Test #25: python_quickstart ................   Passed    0.74 sec
+test 26
+      Start 26: test_bench_util
+
+26: Test command: /home/anoop/hnsw-cpp/build-full-gcc/bench/test_bench_util
+26: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc/bench
+26: Test timeout computed to be: 10000000
+26: 93 checks, 0 failed
+26/27 Test #26: test_bench_util ..................   Passed    0.02 sec
+test 27
+      Start 27: test_bench_smoke
+
+27: Test command: /home/anoop/hnsw-cpp/build-full-gcc/bench/test_bench_smoke "/home/anoop/hnsw-cpp/build-full-gcc/bench"
+27: Working Directory: /home/anoop/hnsw-cpp/build-full-gcc/bench
+27: Test timeout computed to be: 10000000
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_make_synthetic' '--out' '/tmp/hnsw_bench_smoke_17320/data' '--n' '3000' '--nq' '200' '--dim' '32' '--k' '100' '--clusters' '16' '--seed' '7' '--threads' '2'
+27: wrote synthetic dataset to /tmp/hnsw_bench_smoke_17320/data: base 3000 x 32, queries 200, top-100 ground truth
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_gt' 'check' '--base' '/tmp/hnsw_bench_smoke_17320/data/synthetic_base.fvecs' '--queries' '/tmp/hnsw_bench_smoke_17320/data/synthetic_query.fvecs' '--gt' '/tmp/hnsw_bench_smoke_17320/data/synthetic_groundtruth.ivecs' '--n' '3000' '--nq' '200' '--dim' '32' '--k' '100'
+27: base 3000 x 32, queries 200 x 32, ground truth 200 x 100
+27: OK: shapes as expected, all ground-truth ids in [0, 3000), no repeats
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_gt' 'verify' '--base' '/tmp/hnsw_bench_smoke_17320/data/synthetic_base.fvecs' '--queries' '/tmp/hnsw_bench_smoke_17320/data/synthetic_query.fvecs' '--gt' '/tmp/hnsw_bench_smoke_17320/data/synthetic_groundtruth.ivecs' '--sample' '20' '--threads' '2' '--json' '/tmp/hnsw_bench_smoke_17320/verify.json'
+27: verified 20 queries x top-100 against exact brute force (0.000 s on 2 threads)
+27: distance mismatches: 0 ranks in 0 queries (max |diff| 0); ids out of range: 0
+27: ranks with equal distance but a different id (tie order): 0
+27: OK: provided ground truth matches exact search
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_gt' 'subset' '--base' '/tmp/hnsw_bench_smoke_17320/data/synthetic_base.fvecs' '--queries' '/tmp/hnsw_bench_smoke_17320/data/synthetic_query.fvecs' '--n' '2500' '--k' '100' '--out' '/tmp/hnsw_bench_smoke_17320/gt_2500.ivecs' '--threads' '2'
+27: wrote /tmp/hnsw_bench_smoke_17320/gt_2500.ivecs: exact top-100 of 200 queries among the first 2500 base vectors (0.003 s on 2 threads)
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_build' '--system' 'ours' '--data' '/tmp/hnsw_bench_smoke_17320/data/synthetic_base.fvecs' '--n' '2500' '--runs' '2' '--out' '/tmp/hnsw_bench_smoke_17320/ours.hnsw' '--json' '/tmp/hnsw_bench_smoke_17320/build_ours.json'
+27: bench_build: ours run 1/2: 0.113 s
+27: bench_build: ours run 2/2: 0.113 s
+27: ours: n=2500 M=16 efc=200 build median 0.113 s over 2 run(s), index 834412 bytes, VmHWM 6300 kB
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_build' '--system' 'hnswlib' '--data' '/tmp/hnsw_bench_smoke_17320/data/synthetic_base.fvecs' '--n' '2500' '--runs' '2' '--out' '/tmp/hnsw_bench_smoke_17320/hnswlib.idx' '--json' '/tmp/hnsw_bench_smoke_17320/build_hnswlib.json'
+27: bench_build: hnswlib run 1/2: 0.142 s
+27: bench_build: hnswlib run 2/2: 0.144 s
+27: hnswlib: n=2500 M=16 efc=200 build median 0.143 s over 2 run(s), index 691520 bytes, VmHWM 8824 kB
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_search' '--ours' '/tmp/hnsw_bench_smoke_17320/ours.hnsw' '--hnswlib' '/tmp/hnsw_bench_smoke_17320/hnswlib.idx' '--queries' '/tmp/hnsw_bench_smoke_17320/data/synthetic_query.fvecs' '--gt' '/tmp/hnsw_bench_smoke_17320/gt_2500.ivecs' '--efs' '10,40,400' '--threads' '1,3' '--reps' '2' '--dump-ids' '/tmp/hnsw_bench_smoke_17320/ids' '--json' '/tmp/hnsw_bench_smoke_17320/search.json'
+27: bench_search: threads 1 ef 10: ours 302503 qps recall 0.9340 hnswlib 247035 qps recall 0.9300 (0.0 s)
+27: bench_search: threads 1 ef 40: ours 96437 qps recall 1.0000 hnswlib 86389 qps recall 1.0000 (0.0 s)
+27: bench_search: threads 1 ef 400: ours 11066 qps recall 1.0000 hnswlib 10947 qps recall 1.0000 (0.1 s)
+27: bench_search: threads 3 ef 10: ours 672495 qps recall 0.9340 hnswlib 498629 qps recall 0.9300 (0.0 s)
+27: bench_search: threads 3 ef 40: ours 261951 qps recall 1.0000 hnswlib 223040 qps recall 1.0000 (0.0 s)
+27: bench_search: threads 3 ef 400: ours 30049 qps recall 1.0000 hnswlib 27401 qps recall 1.0000 (0.0 s)
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_loadtime' '--ours' '/tmp/hnsw_bench_smoke_17320/ours.hnsw' '--hnswlib' '/tmp/hnsw_bench_smoke_17320/hnswlib.idx' '--queries' '/tmp/hnsw_bench_smoke_17320/data/synthetic_query.fvecs' '--reps' '2' '--first' '50' '--json' '/tmp/hnsw_bench_smoke_17320/load.json'
+27: bench_loadtime: ours-mmap-shallow  load median 0.000017 s, first 50 queries 0.001176 s
+27: bench_loadtime: ours-mmap-deep     load median 0.000126 s, first 50 queries 0.001025 s
+27: bench_loadtime: ours-read-shallow  load median 0.000185 s, first 50 queries 0.001006 s
+27: bench_loadtime: ours-read-deep     load median 0.000228 s, first 50 queries 0.001018 s
+27: bench_loadtime: hnswlib-load       load median 0.001512 s, first 50 queries 0.001084 s
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_build' '--system' 'ours' '--kernel' 'scalar' '--data' '/tmp/hnsw_bench_smoke_17320/data/synthetic_base.fvecs' '--n' '2500' '--out' '/tmp/hnsw_bench_smoke_17320/ours_scalar.hnsw' '--json' '/tmp/hnsw_bench_smoke_17320/build_scalar.json'
+27: bench_build: ours run 1/1: 0.154 s
+27: ours: n=2500 M=16 efc=200 build median 0.154 s over 1 run(s), index 834412 bytes, VmHWM 5896 kB
+27: + '/home/anoop/hnsw-cpp/build-full-gcc/bench/bench_search' '--ours' '/tmp/hnsw_bench_smoke_17320/ours_scalar.hnsw' '--systems' 'ours' '--kernel' 'scalar' '--queries' '/tmp/hnsw_bench_smoke_17320/data/synthetic_query.fvecs' '--gt' '/tmp/hnsw_bench_smoke_17320/gt_2500.ivecs' '--efs' '400' '--threads' '1' '--reps' '1' '--json' '/tmp/hnsw_bench_smoke_17320/search_scalar.json'
+27: bench_search: threads 1 ef 400: ours 9113 qps recall 1.0000 (0.0 s)
+27: 442 checks, 0 failed
+27/27 Test #27: test_bench_smoke .................   Passed    1.08 sec
+
+100% tests passed, 0 tests failed out of 27
+
+Total Test time (real) =  14.18 sec
+ctest exit status: 0
