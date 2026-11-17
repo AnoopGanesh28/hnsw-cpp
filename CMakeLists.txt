@@ -136,6 +136,10 @@ target_compile_options(test_golden PRIVATE ${HNSW_STRICT_FP})
 
 add_subdirectory(tests/fuzz)
 
+# Usage example (README); built with everything else, not a ctest entry.
+add_executable(example_quickstart examples/quickstart.cpp)
+target_link_libraries(example_quickstart PRIVATE hnsw)
+
 if(HNSW_BUILD_PYTHON)
   # The extension is a shared object that links the static library.
   set_target_properties(hnsw PROPERTIES POSITION_INDEPENDENT_CODE ON)
