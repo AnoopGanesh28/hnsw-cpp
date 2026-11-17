@@ -1,5 +1,5 @@
 # Python extension hnsw_cpp._core and the hnsw_cpp package around it.
-find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 CONFIG REQUIRED)
 
 pybind11_add_module(_core src/bindings.cpp)
