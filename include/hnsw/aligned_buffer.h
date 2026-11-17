@@ -1,5 +1,7 @@
 #pragma once
 
+// AlignedBuffer: the growable 64-byte-aligned byte storage behind the layer-0 arena.
+
 #include <cstddef>
 #include <cstdint>
 

@@ -1,5 +1,7 @@
 #pragma once
 
+// SearchScratch: per-thread reusable search state (visited marks and heaps).
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>

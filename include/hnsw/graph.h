@@ -1,5 +1,8 @@
 #pragma once
 
+// GraphView, the read-only view of a graph that all search code runs on, and
+// the search entry points over it (single query and batch).
+
 #include <cstddef>
 #include <cstdint>
 

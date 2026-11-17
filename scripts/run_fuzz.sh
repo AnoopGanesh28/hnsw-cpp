@@ -67,9 +67,9 @@ echo >>"$log"
 echo "# merge: fuzz_$target -merge=1 <seeds> <new corpus> corpus/$target" >>"$log"
 "$bin" -merge=1 "$merged" "$work/corpus" "$fuzz/corpus/$target" >>"$log" 2>&1
 for f in "$fuzz/seeds/$target"/*; do rm -f "$merged/$(basename "$f")"; done
-find "$fuzz/corpus/$target" -type f ! -name .gitkeep -delete
+find "$fuzz/corpus/$target" -type f -delete
 cp "$merged"/* "$fuzz/corpus/$target/" 2>/dev/null || true
-files=$(find "$fuzz/corpus/$target" -type f ! -name .gitkeep | wc -l)
-bytes=$(find "$fuzz/corpus/$target" -type f ! -name .gitkeep -printf '%s\n' | awk '{s += $1} END {print s + 0}')
+files=$(find "$fuzz/corpus/$target" -type f | wc -l)
+bytes=$(find "$fuzz/corpus/$target" -type f -printf '%s\n' | awk '{s += $1} END {print s + 0}')
 echo "corpus after merge: $files files, $bytes bytes (beyond the seeds)" >>"$log"
 tail -n 1 "$log"

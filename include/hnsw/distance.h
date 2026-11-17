@@ -1,5 +1,8 @@
 #pragma once
 
+// Squared-L2 distance kernels (scalar reference and AVX2+FMA) and the run-time
+// choice between them.
+
 #include <cstddef>
 
 namespace hnsw {

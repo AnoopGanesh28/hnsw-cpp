@@ -1,5 +1,7 @@
 #pragma once
 
+// HnswIndex, the in-memory HNSW index: insertion, search, accessors and save.
+
 #include <cstddef>
 #include <cstdint>
 #include <random>

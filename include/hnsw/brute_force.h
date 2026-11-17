@@ -1,5 +1,8 @@
 #pragma once
 
+// Exact k-nearest-neighbor search by linear scan: the ground truth for tests and
+// recall measurement, and the result type (KnnResult) shared with HNSW search.
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>

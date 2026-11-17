@@ -1,5 +1,7 @@
 #pragma once
 
+// Readers and writers for the fvecs/ivecs vector file formats.
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
