@@ -13,7 +13,7 @@ Work in progress. See docs/TASK.md.
 | M3: contiguous layout, epoch visited list, allocation-free heaps, prefetch, AVX2+FMA kernel | done |
 | M4: index file format (save, mmap/read load, validation), thread pool, batch query API | done |
 | M5a: benchmark infrastructure (dataset scripts, ground-truth validation, build/search/load-time harness with hnswlib baseline, tests) | done |
-| M5b: SIFT1M runs, ablation, profile, plot, results table | done (see [Results](#results)); cold-cache load time not measured yet (needs sudo: `bench/results/cold_loadtime_command.txt`) |
+| M5b: SIFT1M runs, ablation, profile, plot, results table | done (see [Results](#results)) |
 | M6, M7 | not started |
 
 Benchmark results are in [Results](#results). The tools and the method are described in
@@ -69,7 +69,9 @@ contains no numbers of its own. The method is described in [bench/README.md](ben
 
 Generated from [bench/results/summary.md](bench/results/summary.md), which also lists the full environment. Values are truncated, not rounded, to the digits shown.
 
-**Verdict:** single-threaded on this machine, ours is faster than hnswlib at recall@10 >= 0.95 (7436 vs 6158 QPS, ratio 1.207); faster than hnswlib at recall@10 >= 0.99 (3254 vs 2665 QPS, ratio 1.220). With 4 threads it is faster at >= 0.95 and faster at >= 0.99; with 8 threads it is faster at >= 0.95 and faster at >= 0.99.
+**Verdict** (faster or slower only where the pass-QPS ranges do not overlap): Single-threaded, ours is faster than hnswlib at recall@10 >= 0.95 (7436 vs 6158 median QPS, ratio 1.207); ours is faster than hnswlib at recall@10 >= 0.99 (3254 vs 2665 median QPS, ratio 1.220). With 4 threads, ours is faster than hnswlib at recall@10 >= 0.95 (14990 vs 13469 median QPS, ratio 1.112); ours is faster than hnswlib at recall@10 >= 0.99 (6029 vs 5496 median QPS, ratio 1.096). With 8 threads, the difference between ours and hnswlib is not distinguishable from noise (ranges overlap) at recall@10 >= 0.95 (18475 vs 17865 median QPS, ratio 1.034); the difference between ours and hnswlib is not distinguishable from noise (ranges overlap) at recall@10 >= 0.99 (7383 vs 7215 median QPS, ratio 1.023).
+
+**Noise.** Repeating the 4 headline single-thread measurements at the end of the run gave repeat / sweep median-QPS ratios from 0.994 to 1.071. 34 measured points have a pass spread above 15% ((max - min) / median): 10 in `sweep_t1.json`, 6 in `sweep_t4.json`, 12 in `sweep_t8.json`, 2 in `repeat_t1.json`, 4 in `ablation`; 21 of the 28 flagged sweep points are at ef <= 64, where a pass is shortest. They are listed under High-spread points.
 
 ### Headline: QPS at the first ef reaching each recall target
 
@@ -90,14 +92,16 @@ Each system at its own first swept ef whose recall@10 reaches the target (no int
 | 8 | >= 0.99 | ours | 160 | 0.9931 | 7383 | 7204 to 7660 |
 | 8 | >= 0.99 | hnswlib | 160 | 0.9932 | 7215 | 6909 to 7353 |
 
-| threads | recall@10 target | ours QPS / hnswlib QPS | ours is |
+A system is called faster or slower only when the two systems' pass-QPS ranges (slowest to fastest pass) do not overlap; otherwise the comparison is reported as not distinguishable from noise. The median ratio is shown either way.
+
+| threads | recall@10 target | ours QPS / hnswlib QPS (median) | ours is |
 |---|---|---|---|
 | 1 | >= 0.95 | 1.207 | faster |
 | 1 | >= 0.99 | 1.220 | faster |
 | 4 | >= 0.95 | 1.112 | faster |
 | 4 | >= 0.99 | 1.096 | faster |
-| 8 | >= 0.95 | 1.034 | faster |
-| 8 | >= 0.99 | 1.023 | faster |
+| 8 | >= 0.95 | 1.034 | not distinguishable from noise (ranges overlap) |
+| 8 | >= 0.99 | 1.023 | not distinguishable from noise (ranges overlap) |
 
 Multi-thread result ids identical to single-thread (same system and ef, compared by hash):
 
@@ -110,63 +114,83 @@ Multi-thread result ids identical to single-thread (same system and ef, compared
 
 ### Build, index size, memory
 
-| system | vectors | M | efConstruction | runs | build s (median) | build s (range) | index bytes | index MiB |
+| system | vectors | M | efConstruction | build s (each run, in order) | build s (median) | build s (range) | index bytes on disk | index MiB |
 |---|---|---|---|---|---|---|---|---|
-| ours | 1000000 | 16 | 200 | 3 | 420.7 | 409.4 to 425.2 | 717532052 | 684.2 |
-| hnswlib | 1000000 | 16 | 200 | 3 | 438.6 | 437.5 to 441.6 | 660565344 | 629.9 |
+| ours | 1000000 | 16 | 200 | 425.2, 420.7, 409.4 | 420.7 | 409.4 to 425.2 | 717532052 | 684.2 |
+| hnswlib | 1000000 | 16 | 200 | 438.6, 441.6, 437.5 | 438.6 | 437.5 to 441.6 | 660565344 | 629.9 |
 
-Peak memory of the build process (VmHWM, kB); the dataset-only value is VmHWM right after loading the base vectors:
+Peak memory of the build process (VmHWM, kB); the dataset-only value is VmHWM right after loading the base vectors, and the delta is the peak above it:
 
-| system | VmHWM end | VmHWM after dataset load | delta |
+| system | VmHWM end | VmHWM after dataset load (dataset only) | delta |
 |---|---|---|---|
 | ours | 1230752 | 504568 | 726184 |
 | hnswlib | 1244412 | 504548 | 739864 |
 
 ### Load time
 
-Warm page cache, 5 repetitions; first 1000 queries at ef 100, single-threaded:
+**Warm page cache** (each strategy loaded once untimed first), 5 repetitions; first 1000 queries at ef 100, single-threaded, fresh scratch:
 
-| strategy | load ms (median) | load ms (range) | first 1000 queries ms (median) |
-|---|---|---|---|
-| ours-mmap-shallow | 0.0324 | 0.0319 to 0.0336 | 205 |
-| ours-mmap-deep | 76.4 | 75.2 to 84.8 | 208 |
-| ours-read-shallow | 251 | 245 to 281 | 258 |
-| ours-read-deep | 327 | 326 to 405 | 267 |
-| hnswlib-load | 671 | 658 to 867 | 251 |
+| strategy | load ms (median) | load ms (range) | first 1000 queries ms (median) | first 1000 queries ms (range) |
+|---|---|---|---|---|
+| ours-mmap-shallow | 0.0324 | 0.0319 to 0.0336 | 205 | 204 to 210 |
+| ours-mmap-deep | 76.4 | 75.2 to 84.8 | 208 | 206 to 222 |
+| ours-read-shallow | 251 | 245 to 281 | 258 | 253 to 268 |
+| ours-read-deep | 327 | 326 to 405 | 267 | 252 to 286 |
+| hnswlib-load | 671 | 658 to 867 | 251 | 248 to 262 |
 
-Cold page cache: not measured (needs sudo; `bench/run_cold_loadtime.sh`).
+**Cold page cache**: `sync; echo 3 | sudo -n tee /proc/sys/vm/drop_caches > /dev/null` before every load, 5 repetitions, same query settings:
+
+| strategy | load ms (median) | load ms (range) | first 1000 queries ms (median) | first 1000 queries ms (range) |
+|---|---|---|---|---|
+| ours-mmap-shallow | 9.39 | 6.16 to 12.3 | 1332 | 1058 to 1495 |
+| ours-mmap-deep | 466 | 455 to 1141 | 312 | 284 to 352 |
+| ours-read-shallow | 497 | 467 to 845 | 352 | 313 to 433 |
+| ours-read-deep | 656 | 543 to 845 | 372 | 356 to 442 |
+| hnswlib-load | 1108 | 879 to 1165 | 430 | 273 to 573 |
+
+**Cold vs warm**, time until the first 1000 queries are answered (median load + median first-queries time):
+
+| strategy | warm ms | cold ms |
+|---|---|---|
+| ours-mmap-shallow | 205 | 1342 |
+| ours-mmap-deep | 284 | 779 |
+| ours-read-shallow | 510 | 849 |
+| ours-read-deep | 594 | 1029 |
+| hnswlib-load | 922 | 1538 |
+
+WSL2 caveat: dropping caches empties the Linux VM's page cache only. The VM's virtual disk is a file on the Windows host, which may still hold it in the Windows file cache, so cold here means cold for Linux, not necessarily a read from the physical drive. With mmap, the cold cost moves from the load into the first queries, which fault pages in on demand.
 
 ### Ablation
 
-Single-threaded, pinned, the same `ours.hnsw` for every variant; 5 repetitions per combination, each its own process (1 warm-up + 1 timed pass), combinations interleaved round robin. QPS is queries / median timed pass. Recall@10 per kernel: ef 56: scalar 0.9544, AVX2 0.9544; ef 160: scalar 0.9931, AVX2 0.9931.
+Single-threaded, pinned, the same `ours.hnsw` for every variant; 5 repetitions per combination, each its own process (1 warm-up + 1 timed pass), combinations interleaved round robin. QPS is queries / median timed pass. Every ratio is of medians; it is marked "within noise" when the QPS ranges (slowest to fastest repetition) of the two configurations overlap, and such a ratio is not a measured speedup or slowdown. Recall@10 per kernel: ef 56: scalar 0.9544, AVX2 0.9544; ef 160: scalar 0.9931, AVX2 0.9931.
 
-**Each optimization alone** (QPS, speedup over all off with the scalar kernel):
+**Each optimization alone** (QPS; ratio over all off with the scalar kernel):
 
 | optimization | ef 56 (recall >= 0.95) | ef 160 (recall >= 0.99) |
 |---|---|---|
-| epoch visited list | 3916 (x1.068) | 1641 (x1.004) |
-| allocation-free heaps | 3744 (x1.021) | 1589 (x0.972) |
+| epoch visited list | 3916 (x1.068) | 1641 (x1.004, within noise) |
+| allocation-free heaps | 3744 (x1.021, within noise) | 1589 (x0.972, within noise) |
 | software prefetch | 4924 (x1.343) | 2155 (x1.318) |
 | AVX2+FMA kernel | 6289 (x1.716) | 2736 (x1.674) |
 
-Baseline, all off (scalar): ef 56: 3665 QPS, ef 160: 1634 QPS.
+Baseline, all off (scalar): ef 56: 3665 QPS (3477 to 3750), ef 160: 1634 QPS (1611 to 1644).
 
-**Cumulative** (QPS; total speedup over all off, and the step over the row above):
-
-| configuration | ef 56 (recall >= 0.95) | ef 160 (recall >= 0.99) |
-|---|---|---|
-| all off (scalar) | 3665 (total x1.000) | 1634 (total x1.000) |
-| + epoch visited list | 3916 (total x1.068, step x1.068) | 1641 (total x1.004, step x1.004) |
-| + allocation-free heaps | 4026 (total x1.098, step x1.028) | 1672 (total x1.023, step x1.018) |
-| + software prefetch | 5336 (total x1.456, step x1.325) | 2234 (total x1.367, step x1.336) |
-| + AVX2+FMA kernel | 7839 (total x2.138, step x1.468) | 3172 (total x1.940, step x1.419) |
-
-**Leave one out** from the full configuration (ef 56: 7839 QPS, ef 160: 3172 QPS):
+**Cumulative** (QPS; total ratio over all off, and the step over the row above):
 
 | configuration | ef 56 (recall >= 0.95) | ef 160 (recall >= 0.99) |
 |---|---|---|
-| without epoch visited list | 7221 (full / this: x1.085) | 3185 (full / this: x0.995) |
-| without allocation-free heaps | 7783 (full / this: x1.007) | 3119 (full / this: x1.016) |
+| all off (scalar) | 3665 | 1634 |
+| + epoch visited list | 3916 (total x1.068; step x1.068) | 1641 (total x1.004, within noise; step x1.004, within noise) |
+| + allocation-free heaps | 4026 (total x1.098, within noise; step x1.028, within noise) | 1672 (total x1.023, within noise; step x1.018, within noise) |
+| + software prefetch | 5336 (total x1.456; step x1.325) | 2234 (total x1.367; step x1.336) |
+| + AVX2+FMA kernel | 7839 (total x2.138; step x1.468) | 3172 (total x1.940; step x1.419) |
+
+**Leave one out** from the full configuration (ef 56: 7839 QPS (7717 to 7962), ef 160: 3172 QPS (3104 to 3249)):
+
+| configuration | ef 56 (recall >= 0.95) | ef 160 (recall >= 0.99) |
+|---|---|---|
+| without epoch visited list | 7221 (full / this: x1.085) | 3185 (full / this: x0.995, within noise) |
+| without allocation-free heaps | 7783 (full / this: x1.007, within noise) | 3119 (full / this: x1.016, within noise) |
 | without software prefetch | 6968 (full / this: x1.124) | 2835 (full / this: x1.118) |
 | without AVX2+FMA kernel | 5336 (full / this: x1.468) | 2234 (full / this: x1.419) |
 
@@ -197,12 +221,41 @@ Result-id check (`ablation_check.json`): identical ids for every same-kernel com
 
 ### Layout ablation
 
-Memory layout, measured on the full base (1000000 vectors). The M2 build time was projected from a 100000-vector build (51.4 s) to 617.0 s for 1000000 vectors (n log n; limit 5400.0 s). M2 baseline (pre-layout, scalar) versus the all-off scalar variant on an index with the same graph, both single-threaded and pinned, 7 repetitions; the all-off variant was measured just before and just after every M2 repetition:
+Memory layout, measured on the full base (1000000 vectors). The M2 build time was projected from a 100000-vector build (51.4 s) to 617.0 s for 1000000 vectors (n log n; limit 5400.0 s). M2 baseline (pre-layout, scalar kernel) versus the all-off scalar variant (current layout) on an index with the same graph, both single-threaded and pinned.
 
-| ef | recall@10 | M2 QPS | all-off QPS before (vs M2) | all-off QPS after (vs M2) |
+How the samples were taken: one M2 process built the index once, then ran 7 repetitions M_0 .. M_6 (each 1 warm-up + 1 timed pass per ef). Before M_0 and after every M_r it ran the all-off variant once as a separate process, giving 8 all-off samples A_0 .. A_7 in the order A_0 M_0 A_1 M_1 ... M_6 A_7. M_r sits between A_r and A_(r+1). The "before" group A_0 .. A_6 and the "after" group A_1 .. A_7 share 6 of their 7 samples (A_1 .. A_6), so they are not independent: they differ only in A_0 versus A_7. At ef 56 the medians are A_4 (2.6936 s) and A_1 (2.6933 s), close enough that both truncate to the same QPS. At ef 160 both groups' median is the same sample, A_1, so the two values are identical. The comparison below therefore uses all 8 all-off samples as one group, and lists both overlapping groups and every raw sample.
+
+| ef | recall@10 | M2 QPS median (range) | all-off QPS median (range), all 8 samples | all-off / M2 (medians) | current layout is |
+|---|---|---|---|---|---|
+| 56 | 0.9544 | 2933 (2907 to 2942) | 3712 (3381 to 3755) | x1.265 | faster |
+| 160 | 0.9931 | 1214 (1093 to 1262) | 1635 (1550 to 1648) | x1.346 | faster |
+
+Overlapping groups (not independent; shown only to explain the identical values reported before):
+
+| ef | before A_0..A_6 QPS | after A_1..A_7 QPS | before median s | after median s |
 |---|---|---|---|---|
-| 56 | 0.9544 | 2933 | 3712 (x1.265) | 3712 (x1.265) |
-| 160 | 0.9931 | 1214 | 1638 (x1.348) | 1638 (x1.348) |
+| 56 | 3712 | 3712 | 2.6936 | 2.6933 |
+| 160 | 1638 | 1638 | 6.1032 | 6.1032 |
+
+Every raw timed pass, in execution order (seconds for 10000 queries):
+
+| run | ef 56 s | ef 160 s |
+|---|---|---|
+| A_0 | 2.7521 | 6.4514 |
+| M_0 | 3.4089 | 7.9668 |
+| A_1 | 2.6933 | 6.1032 |
+| M_1 | 3.4077 | 8.2311 |
+| A_2 | 2.6892 | 6.1683 |
+| M_2 | 3.4005 | 9.1462 |
+| A_3 | 2.7086 | 6.1378 |
+| M_3 | 3.3980 | 7.9353 |
+| A_4 | 2.6936 | 6.0651 |
+| M_4 | 3.4291 | 8.9694 |
+| A_5 | 2.9570 | 6.0970 |
+| M_5 | 3.4398 | 7.9234 |
+| A_6 | 2.6628 | 6.0807 |
+| M_6 | 3.4129 | 9.0236 |
+| A_7 | 2.6829 | 6.1251 |
 
 Result-id check (`layout_check.json`): M2 ids equal the all-off variant's: True.
 
@@ -316,14 +369,14 @@ Points whose timed passes spread by more than 15% ((max - min) / median):
   CPU, and multi-thread runs are not pinned. The power and session settings recorded
   by hand are listed in `bench/results/summary.md`.
 - **Noise.** Each point is the median of several timed passes, and the spread of every
-  point is stored. Points whose spread exceeds the threshold are listed under
-  "High-spread points" instead of being hidden. Differences of a few percent between
-  the two systems are within what this machine reproduces from run to run (see
-  "Reproducibility").
-- **Cold-cache load time.** Measuring it needs `sudo` to drop the page cache
-  (`bench/run_cold_loadtime.sh`). Until that has been run, it is reported as not
-  measured. Under WSL2, dropping the cache clears the Linux VM's page cache only;
-  Windows may still have the virtual disk cached.
+  point is stored. The generated "Noise" paragraph above states the measured run-to-run
+  variation and where the high-spread points are. A comparison is called faster or
+  slower only when the pass ranges of the two sides do not overlap; otherwise the
+  generated text says it is not distinguishable from noise.
+- **Cold-cache load time.** Measured with `bench/run_cold_loadtime.sh`, which drops the
+  page cache (with `sudo`) before every load. Under WSL2 that clears the Linux VM's page
+  cache only; Windows may still have the virtual disk cached, so "cold" means cold for
+  Linux.
 
 ### Fairness notes
 

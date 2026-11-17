@@ -132,6 +132,19 @@ def pass_qps(r):
 
 
 # ------------------------------------------------------------ sections
+NOISE = "not distinguishable from noise (ranges overlap)"
+
+
+def ranges_overlap(a, b):
+    """a, b: (median, lo, hi) QPS triples; True if [lo, hi] intervals overlap."""
+    return not (a[2] < b[1] or b[2] < a[1])
+
+
+def mark(ratio_value, a, b):
+    """'x1.234' when the ranges of a and b are disjoint, else 'x1.234, within noise'."""
+    return f"x{ratio(ratio_value)}" + (", within noise" if ranges_overlap(a, b) else "")
+
+
 @section
 def sec_environment(R):
     env_doc = load(need(R.path("environment.json")))
@@ -139,21 +152,43 @@ def sec_environment(R):
     e = sweep["environment"]
     ds = sweep["dataset"]
     b = e["build"]
+    base = load(need(R.path("build_ours.json")))["dataset"]["base"]
+    commits = set()
+    for f in glob.glob(R.path("*.json")) + glob.glob(R.path("*", "*.json")):
+        env = load(f).get("environment")
+        if isinstance(env, dict) and "source" in env:
+            commits.add((env["source"]["commit"], env["source"]["dirty"]))
+    m2_commit = load(need(R.path("layout", "m2.json")))["environment"]
+    pm = b["predefined_macros"]
+    h = e["hnswlib"]
+    files = [("base", base), ("queries", ds["queries"]), ("ground truth", ds["ground_truth"])]
     lines = [
         f"- Dataset: `{ds['name']}`, {ds['index_vectors']} base vectors, "
         f"{sweep['config']['queries']} queries, recall@{sweep['config']['k']} against the "
-        f"first {sweep['config']['k']} ground-truth ids.",
+        f"first {sweep['config']['k']} ground-truth ids. Files (bytes, sha256, checked "
+        "against `bench/data/sift/MANIFEST` by every tool):",
+    ] + [f"  - {name}: `{os.path.basename(r['path'])}`, {r['bytes']} bytes, `{r['sha256']}`"
+         for name, r in files] + [
         f"- CPU: {e['cpu']['model']}, {e['cpu']['physical_cores']} cores / "
-        f"{e['cpu']['logical_cpus']} logical CPUs; MemTotal {e['mem_total_kib']} kB.",
+        f"{e['cpu']['logical_cpus']} logical CPUs, {e['cpu']['sockets']} socket; MemTotal "
+        f"{e['mem_total_kib']} kB.",
         f"- Kernel: `{e['kernel']['release']}` (WSL detected: {e['wsl']['detected']}).",
         f"- Compiler: {e['compiler']['gxx_version_line']} (`{e['compiler']['path']}`).",
         f"- Flags: `{b['cxx_flags']}`; per file: "
         + ", ".join(f"`{k}`: `{v}`" for k, v in b["per_file_options"].items())
-        + f"; release build: {b['release_build']}.",
-        f"- Source: commit `{e['source']['commit']}` (`{e['source']['describe']}`, "
-        f"dirty: {e['source']['dirty']}).",
-        f"- hnswlib: {e['hnswlib']['tag_pinned']} (`{e['hnswlib']['commit_at_build']}`), "
-        f"L2 function `{e['hnswlib']['l2_function']}`. Ours: `{e['ours']['l2_function']}`.",
+        + f"; sanitizers: {b['sanitize']}; release build: {b['release_build']}.",
+        f"- AVX status: compiled with `__AVX2__` {pm['__AVX2__']}, `__FMA__` {pm['__FMA__']}, "
+        f"`__AVX512F__` {pm['__AVX512F__']}; CPU supports AVX2+FMA at run time: "
+        f"{e['ours']['cpu_supports_avx2_fma']}. Ours: `{e['ours']['l2_function']}`. hnswlib "
+        f"header macros: " + ", ".join(f"`{k}` {v}" for k, v in h["header_macros"].items())
+        + f"; L2 function `{h['l2_function']}`, AVX path active: {h['avx_path_active']}.",
+        "- Source commit of every result file's binaries: "
+        + "; ".join(f"`{c}` (dirty: {d})" for c, d in sorted(commits))
+        + f" (`{e['source']['describe']}`).",
+        f"- hnswlib: {h['tag_pinned']}, commit `{h['commit_at_build']}` (pinned "
+        f"`{h['commit_pinned']}`).",
+        f"- M2 layout baseline: commit `{m2_commit['m2_commit']}`, compiled with "
+        f"`{m2_commit['cxx_flags']}`.",
         f"- Single-thread runs pinned to logical CPU "
         f"{env_doc['pinned_cpu_for_single_thread_runs']} (`taskset`; recorded affinity "
         f"{e['cpu_affinity']}); multi-thread runs not pinned.",
@@ -175,8 +210,11 @@ def headline_points(R):
     return pts
 
 
-def compare_word(ours_qps, hnswlib_qps):
-    return "faster" if ours_qps > hnswlib_qps else "slower" if ours_qps < hnswlib_qps else "equal"
+def compare_word(o, h):
+    """o, h: (median, lo, hi) QPS. Faster/slower only when the pass ranges are disjoint."""
+    if ranges_overlap(o, h):
+        return NOISE
+    return "faster" if o[0] > h[0] else "slower"
 
 
 @section
@@ -199,14 +237,17 @@ def sec_headline(R):
     cmp_rows = []
     for t in R.sweep_threads():
         for target in TARGETS:
-            o, h = pts[(("ours", t, target))], pts[("hnswlib", t, target)]
+            o, h = pts[("ours", t, target)], pts[("hnswlib", t, target)]
             if o is None or h is None:
                 cmp_rows.append([t, f">= {target}", "not comparable (target not reached)", ""])
                 continue
-            oq, hq = pass_qps(o)[0], pass_qps(h)[0]
-            cmp_rows.append([t, f">= {target}", ratio(oq / hq), compare_word(oq, hq)])
-    out += "\n\n" + table(["threads", "recall@10 target", "ours QPS / hnswlib QPS",
-                           "ours is"], cmp_rows)
+            oq, hq = pass_qps(o), pass_qps(h)
+            cmp_rows.append([t, f">= {target}", ratio(oq[0] / hq[0]), compare_word(oq, hq)])
+    out += ("\n\nA system is called faster or slower only when the two systems' pass-QPS "
+            "ranges (slowest to fastest pass) do not overlap; otherwise the comparison is "
+            "reported as not distinguishable from noise. The median ratio is shown either "
+            "way.\n\n" + table(["threads", "recall@10 target", "ours QPS / hnswlib QPS (median)",
+                                "ours is"], cmp_rows))
     return out + "\n"
 
 
@@ -214,30 +255,47 @@ def sec_headline(R):
 def sec_verdict(R):
     need(R.path("sweep_t1.json"))
     pts = headline_points(R)
-    parts = []
-    for target in TARGETS:
-        o, h = pts[("ours", 1, target)], pts[("hnswlib", 1, target)]
-        if o is None or h is None:
-            parts.append(f"not comparable at recall@10 >= {target} (a system never reaches it)")
-            continue
-        oq, hq = pass_qps(o)[0], pass_qps(h)[0]
-        parts.append(f"{compare_word(oq, hq)} than hnswlib at recall@10 >= {target} "
-                     f"({qps(oq)} vs {qps(hq)} QPS, ratio {ratio(oq / hq)})")
-    multi = []
+    groups = []
     for t in R.sweep_threads():
-        if t == 1:
-            continue
-        words = []
+        parts = []
         for target in TARGETS:
             o, h = pts[("ours", t, target)], pts[("hnswlib", t, target)]
-            if o is not None and h is not None:
-                words.append(f"{compare_word(pass_qps(o)[0], pass_qps(h)[0])} at >= {target}")
-        if words:
-            multi.append(f"with {t} threads it is " + " and ".join(words))
-    text = "**Verdict:** single-threaded on this machine, ours is " + "; ".join(parts) + "."
-    if multi:
-        text += " " + "; ".join(multi).capitalize() + "."
-    return text + "\n"
+            if o is None or h is None:
+                parts.append(f"not comparable at recall@10 >= {target} (a system never "
+                             "reaches it)")
+                continue
+            oq, hq = pass_qps(o), pass_qps(h)
+            word = compare_word(oq, hq)
+            what = (f"ours is {word} than hnswlib" if word != NOISE else
+                    f"the difference between ours and hnswlib is {word}")
+            parts.append(f"{what} at recall@10 >= {target} ({qps(oq[0])} vs {qps(hq[0])} "
+                         f"median QPS, ratio {ratio(oq[0] / hq[0])})")
+        label = "Single-threaded" if t == 1 else f"With {t} threads"
+        groups.append(f"{label}, " + "; ".join(parts))
+    return ("**Verdict** (faster or slower only where the pass-QPS ranges do not overlap): "
+            + ". ".join(groups) + ".\n")
+
+
+@section
+def sec_noise(R):
+    rep = load(need(R.path("repeat_t1.json")))
+    base = {(r["system"], r["ef"]): r for r in R.sweep(1)["results"]}
+    ratios = [pass_qps(r)[0] / pass_qps(base[(r["system"], r["ef"])])[0]
+              for r in rep["results"]]
+    flagged = high_spread(R)
+    by_place = {}
+    for where, label, _, _ in flagged:
+        by_place[where] = by_place.get(where, 0) + 1
+    low_ef = sum(1 for where, label, _, _ in flagged
+                 if where.startswith("sweep") and int(label.split(" ef ")[1].split()[0]) <= 64)
+    sweep_n = sum(n for w, n in by_place.items() if w.startswith("sweep"))
+    return (f"**Noise.** Repeating the {len(ratios)} headline single-thread measurements at the "
+            f"end of the run gave repeat / sweep median-QPS ratios from {ratio(min(ratios))} "
+            f"to {ratio(max(ratios))}. {len(flagged)} measured points have a pass spread "
+            f"above {trunc(100 * SPREAD_LIMIT, 0)}% ((max - min) / median): "
+            + ", ".join(f"{n} in `{w}`" for w, n in by_place.items())
+            + f"; {low_ef} of the {sweep_n} flagged sweep points are at ef <= 64, where a "
+            "pass is shortest. They are listed under High-spread points.\n")
 
 
 @section
@@ -261,45 +319,75 @@ def sec_build(R):
         d = load(need(R.path(f"build_{s}.json")))
         b = d["build_seconds"]
         rows.append([s, d["config"]["n"], d["config"]["M"], d["config"]["ef_construction"],
-                     len(b["raw"]), trunc(b["median"], 1), f"{trunc(b['min'], 1)} to {trunc(b['max'], 1)}",
+                     ", ".join(trunc(x, 1) for x in b["raw"]), trunc(b["median"], 1),
+                     f"{trunc(b['min'], 1)} to {trunc(b['max'], 1)}",
                      d["index"]["bytes"], trunc(d["index"]["bytes"] / 2**20, 1)])
         m = d["memory"]
         mem.append([s, m["vm_hwm_end_kib"], m["vm_hwm_after_load_kib"],
                     m["vm_hwm_end_kib"] - m["vm_hwm_after_load_kib"]])
-    return (table(["system", "vectors", "M", "efConstruction", "runs", "build s (median)",
-                   "build s (range)", "index bytes", "index MiB"], rows)
+    return (table(["system", "vectors", "M", "efConstruction", "build s (each run, in order)",
+                   "build s (median)", "build s (range)", "index bytes on disk", "index MiB"],
+                  rows)
             + "\n\nPeak memory of the build process (VmHWM, kB); the dataset-only value is "
-            "VmHWM right after loading the base vectors:\n\n"
-            + table(["system", "VmHWM end", "VmHWM after dataset load", "delta"], mem) + "\n")
+            "VmHWM right after loading the base vectors, and the delta is the peak above it:\n\n"
+            + table(["system", "VmHWM end", "VmHWM after dataset load (dataset only)",
+                     "delta"], mem) + "\n")
+
+
+def ms(x):
+    return trunc_sig(x * 1000)
 
 
 @section
 def sec_load(R):
-    d = load(need(R.path("loadtime_warm.json")))
-    c = d["config"]
+    warm = load(need(R.path("loadtime_warm.json")))
+    c = warm["config"]
+    nfirst = c["first_queries"]
     rows = []
-    for r in d["results"]:
+    for r in warm["results"]:
         ls, fq = r["load_seconds"], r["first_queries_seconds"]
-        rows.append([r["strategy"], trunc_sig(ls["median"] * 1000), trunc_sig(ls["min"] * 1000)
-                     + " to " + trunc_sig(ls["max"] * 1000), trunc_sig(fq["median"] * 1000)])
-    out = (f"Warm page cache, {c['reps']} repetitions; first {c['first_queries']} queries at "
-           f"ef {c['ef']}, single-threaded:\n\n"
-           + table(["strategy", "load ms (median)", "load ms (range)",
-                    f"first {c['first_queries']} queries ms (median)"], rows) + "\n")
-    cold = R.path("loadtime_cold.json")
-    if os.path.exists(cold):
-        d = load(cold)
-        rows = [[r["strategy"], trunc_sig(r["load_seconds"]["median"] * 1000),
-                 trunc_sig(r["first_queries_seconds"]["median"] * 1000)] for r in d["results"]]
-        out += ("\nCold page cache (Linux page cache dropped before every load):\n\n"
-                + table(["strategy", "load ms (median)", "first queries ms (median)"], rows) + "\n")
-    else:
-        out += "\nCold page cache: not measured (needs sudo; `bench/run_cold_loadtime.sh`).\n"
+        rows.append([r["strategy"], ms(ls["median"]), f"{ms(ls['min'])} to {ms(ls['max'])}",
+                     ms(fq["median"]), f"{ms(fq['min'])} to {ms(fq['max'])}"])
+    hdr = ["strategy", "load ms (median)", "load ms (range)",
+           f"first {nfirst} queries ms (median)", f"first {nfirst} queries ms (range)"]
+    out = (f"**Warm page cache** (each strategy loaded once untimed first), {c['reps']} "
+           f"repetitions; first {nfirst} queries at ef {c['ef']}, single-threaded, fresh "
+           "scratch:\n\n" + table(hdr, rows) + "\n")
+    cold_path = R.path("loadtime_cold.json")
+    if not os.path.exists(cold_path):
+        return out + "\nCold page cache: not measured (needs sudo; `bench/run_cold_loadtime.sh`).\n"
+    cold = load(cold_path)
+    cc = cold["config"]
+    rows = []
+    for r in cold["results"]:
+        ls, fq = r["load_seconds"], r["first_queries_seconds"]
+        rows.append([r["strategy"], ms(ls["median"]), f"{ms(ls['min'])} to {ms(ls['max'])}",
+                     ms(fq["median"]), f"{ms(fq['min'])} to {ms(fq['max'])}"])
+    out += (f"\n**Cold page cache**: `{cc['pre_load_command']}` before every load, "
+            f"{cc['reps']} repetitions, same query settings:\n\n" + table(hdr, rows) + "\n")
+    w = {r["strategy"]: r for r in warm["results"]}
+    rows = []
+    for r in cold["results"]:
+        s = r["strategy"]
+        if s not in w:
+            continue
+        wt = w[s]["load_seconds"]["median"] + w[s]["first_queries_seconds"]["median"]
+        ct = r["load_seconds"]["median"] + r["first_queries_seconds"]["median"]
+        rows.append([s, ms(wt), ms(ct)])
+    out += ("\n**Cold vs warm**, time until the first " f"{nfirst} queries are answered (median "
+            "load + median first-queries time):\n\n"
+            + table(["strategy", "warm ms", "cold ms"], rows)
+            + "\n\nWSL2 caveat: dropping caches empties the Linux VM's page cache only. The "
+            "VM's virtual disk is a file on the Windows host, which may still hold it in the "
+            "Windows file cache, so cold here means cold for Linux, not necessarily a read "
+            "from the physical drive. With mmap, the cold cost moves from the load into the "
+            "first queries, which fault pages in on demand.\n")
     return out
 
 
 # ------------------------------------------------------------ ablation
 ABL_NAME = re.compile(r"abl_e(\d)h(\d)p(\d)_(scalar|avx2)_r(\d+)\.json$")
+CHAIN = [(0, 0, 0, 0), (1, 0, 0, 0), (1, 1, 0, 0), (1, 1, 1, 0), (1, 1, 1, 1)]
 
 
 def ablation_data(R):
@@ -324,6 +412,7 @@ def combo_name(c):
 
 
 def abl_qps(times, nq, c, ef):
+    """(median, lo, hi) QPS over the repetitions of combination c at ef."""
     t = times[(c, ef)]
     return nq / statistics.median(t), nq / max(t), nq / min(t)
 
@@ -335,63 +424,77 @@ def sec_ablation(R):
     off, full = (0, 0, 0, 0), (1, 1, 1, 1)
     reps = len(times[(off, pts[0]["ef"])])
     hdr_pts = [f"ef {p['ef']} (recall >= {p['target']})" for p in pts]
+
+    def q(c, ef):
+        return abl_qps(times, nq, c, ef)
+
+    def vs(c, base, ef):
+        """Ratio of c over base, marked within noise when their ranges overlap."""
+        return mark(q(c, ef)[0] / q(base, ef)[0], q(c, ef), q(base, ef))
+
     out = [f"Single-threaded, pinned, the same `ours.hnsw` for every variant; {reps} "
            "repetitions per combination, each its own process (1 warm-up + 1 timed pass), "
-           "combinations interleaved round robin. QPS is queries / median timed pass. "
-           "Recall@10 per kernel: "
+           "combinations interleaved round robin. QPS is queries / median timed pass. Every "
+           "ratio is of medians; it is marked \"within noise\" when the QPS ranges (slowest to "
+           "fastest repetition) of the two configurations overlap, and such a ratio is not "
+           "a measured speedup or slowdown. Recall@10 per kernel: "
            + "; ".join(f"ef {p['ef']}: scalar {rec(recall[(0, p['ef'])])}, AVX2 "
                        f"{rec(recall[(1, p['ef'])])}" for p in pts) + ".\n"]
-
-    def cell(c, ef, base=None):
-        q = abl_qps(times, nq, c, ef)[0]
-        return qps(q) + (f" (x{ratio(q / abl_qps(times, nq, base, ef)[0])})" if base else "")
 
     rows = []
     for i, o in enumerate(OPTS):
         c = tuple(int(j == i) for j in range(4))
-        rows.append([OPT_LABEL[o]] + [cell(c, p["ef"], off) for p in pts])
-    out.append("**Each optimization alone** (QPS, speedup over all off with the scalar "
+        rows.append([OPT_LABEL[o]] + [f"{qps(q(c, p['ef'])[0])} ({vs(c, off, p['ef'])})"
+                                      for p in pts])
+    out.append("**Each optimization alone** (QPS; ratio over all off with the scalar "
                "kernel):\n\n" + table(["optimization"] + hdr_pts, rows)
                + "\n\nBaseline, all off (scalar): "
-               + ", ".join(f"ef {p['ef']}: {cell(off, p['ef'])} QPS" for p in pts) + ".\n")
+               + ", ".join(f"ef {p['ef']}: {qps(q(off, p['ef'])[0])} QPS "
+                           f"({qps(q(off, p['ef'])[1])} to {qps(q(off, p['ef'])[2])})"
+                           for p in pts) + ".\n")
 
-    chain = [(0, 0, 0, 0), (1, 0, 0, 0), (1, 1, 0, 0), (1, 1, 1, 0), (1, 1, 1, 1)]
     names = ["all off (scalar)", "+ epoch visited list", "+ allocation-free heaps",
              "+ software prefetch", "+ AVX2+FMA kernel"]
     rows = []
-    for k, c in enumerate(chain):
+    for k, c in enumerate(CHAIN):
         row = [names[k]]
         for p in pts:
-            q = abl_qps(times, nq, c, p["ef"])[0]
-            step = "" if k == 0 else f", step x{ratio(q / abl_qps(times, nq, chain[k - 1], p['ef'])[0])}"
-            row.append(f"{qps(q)} (total x{ratio(q / abl_qps(times, nq, off, p['ef'])[0])}{step})")
+            ef = p["ef"]
+            cell = f"{qps(q(c, ef)[0])}"
+            if k > 0:
+                cell += f" (total {vs(c, off, ef)}; step {vs(c, CHAIN[k - 1], ef)})"
+            row.append(cell)
         rows.append(row)
-    out.append("**Cumulative** (QPS; total speedup over all off, and the step over the row "
+    out.append("**Cumulative** (QPS; total ratio over all off, and the step over the row "
                "above):\n\n" + table(["configuration"] + hdr_pts, rows) + "\n")
 
     rows = []
     for i, o in enumerate(OPTS):
         c = tuple(0 if j == i else 1 for j in range(4))
-        row = [f"without {OPT_LABEL[o]}"]
-        for p in pts:
-            qf, qw = abl_qps(times, nq, full, p["ef"])[0], abl_qps(times, nq, c, p["ef"])[0]
-            row.append(f"{qps(qw)} (full / this: x{ratio(qf / qw)})")
-        rows.append(row)
+        rows.append([f"without {OPT_LABEL[o]}"]
+                    + [f"{qps(q(c, p['ef'])[0])} (full / this: {vs(full, c, p['ef'])})"
+                       for p in pts])
     out.append("**Leave one out** from the full configuration ("
-               + ", ".join(f"ef {p['ef']}: {cell(full, p['ef'])} QPS" for p in pts)
+               + ", ".join(f"ef {p['ef']}: {qps(q(full, p['ef'])[0])} QPS "
+                           f"({qps(q(full, p['ef'])[1])} to {qps(q(full, p['ef'])[2])})"
+                           for p in pts)
                + "):\n\n" + table(["configuration"] + hdr_pts, rows) + "\n")
 
     rows = []
     for c in sorted({k for k, _ in times}):
         rows.append([combo_name(c)] + [
-            f"{qps(abl_qps(times, nq, c, p['ef'])[0])} ({qps(abl_qps(times, nq, c, p['ef'])[1])} "
-            f"to {qps(abl_qps(times, nq, c, p['ef'])[2])})" for p in pts])
+            f"{qps(q(c, p['ef'])[0])} ({qps(q(c, p['ef'])[1])} to {qps(q(c, p['ef'])[2])})"
+            for p in pts])
     out.append("All 16 combinations (QPS median, slowest to fastest repetition):\n\n"
                + table(["enabled"] + hdr_pts, rows) + "\n")
     chk = load(need(R.path("ablation_check.json")))
     out.append(f"Result-id check (`ablation_check.json`): identical ids for every same-kernel "
                f"combination: {chk['ok']}.\n")
     return "\n".join(out)
+
+
+def secs4(x):
+    return trunc(x, 4)
 
 
 @section
@@ -401,35 +504,81 @@ def sec_layout(R):
     chk = load(need(R.path("layout_check.json")))
     reps = m2["reps"]
     nq = m2["queries"]
-    before, after = {}, {}
+    efs = [r["ef"] for r in m2["results"]]
+    bracket = {}  # ef -> [A_0 .. A_reps] seconds
     for i in range(reps + 1):
         for r in load(need(R.path("layout", f"alloff_bracket_{i}.json")))["results"]:
-            t = r["seconds"]["raw"][0]
-            if i < reps:
-                before.setdefault(r["ef"], []).append(t)
-            if i > 0:
-                after.setdefault(r["ef"], []).append(t)
+            bracket.setdefault(r["ef"], []).append(r["seconds"]["raw"][0])
+    m2_by_ef = {r["ef"]: r for r in m2["results"]}
+
+    def trip(secs):
+        return nq / statistics.median(secs), nq / max(secs), nq / min(secs)
+
+    def median_note(ef):
+        """Which samples are the medians of the before and after groups (odd group size)."""
+        b, a = bracket[ef][:reps], bracket[ef][1:]
+        bi = bracket[ef].index(statistics.median_low(b))
+        ai = bracket[ef].index(statistics.median_low(a))
+        if bi == ai:
+            return (f"At ef {ef} both groups' median is the same sample, A_{bi}, so the two "
+                    "values are identical.")
+        same = qps(nq / bracket[ef][bi]) == qps(nq / bracket[ef][ai])
+        return (f"At ef {ef} the medians are A_{bi} ({secs4(bracket[ef][bi])} s) and A_{ai} "
+                f"({secs4(bracket[ef][ai])} s)"
+                + (", close enough that both truncate to the same QPS." if same else "."))
+
     size = (f"{proj['layout_n']}-vector subset (ground truth recomputed for it)"
             if proj["subset"] else f"full base ({proj['layout_n']} vectors)")
+    out = [f"Memory layout, measured on the {size}. The M2 build time was projected from a "
+           f"{proj['probe_n']}-vector build ({trunc(proj['probe_build_seconds'], 1)} s) to "
+           f"{trunc(proj['projected_full_build_seconds'], 1)} s for {proj['full_n']} vectors "
+           f"(n log n; limit {trunc(proj['limit_seconds'], 1)} s). M2 baseline (pre-layout, "
+           "scalar kernel) versus the all-off scalar variant (current layout) on an index with "
+           "the same graph, both single-threaded and pinned.\n",
+           f"How the samples were taken: one M2 process built the index once, then ran "
+           f"{reps} repetitions M_0 .. M_{reps - 1} (each 1 warm-up + 1 timed pass per ef). "
+           f"Before M_0 and after every M_r it ran the all-off variant once as a separate "
+           f"process, giving {reps + 1} all-off samples A_0 .. A_{reps} in the order "
+           f"A_0 M_0 A_1 M_1 ... M_{reps - 1} A_{reps}. M_r sits between A_r and A_(r+1). The "
+           f"\"before\" group A_0 .. A_{reps - 1} and the \"after\" group A_1 .. A_{reps} "
+           f"share {reps - 1} of their {reps} samples (A_1 .. A_{reps - 1}), so they are not "
+           f"independent: they differ only in A_0 versus A_{reps}. "
+           + " ".join(median_note(ef) for ef in efs)
+           + f" The comparison below therefore uses all {reps + 1} all-off samples as one "
+           "group, and lists both overlapping groups and every raw sample.\n"]
     rows = []
-    for r in m2["results"]:
-        ef = r["ef"]
-        qm = nq / r["seconds"]["median"]
-        qb = nq / statistics.median(before[ef])
-        qa = nq / statistics.median(after[ef])
-        rows.append([ef, rec(r["recall_at_k"]), qps(qm), f"{qps(qb)} (x{ratio(qb / qm)})",
-                     f"{qps(qa)} (x{ratio(qa / qm)})"])
-    return (f"Memory layout, measured on the {size}. The M2 build time was projected from a "
-            f"{proj['probe_n']}-vector build ({trunc(proj['probe_build_seconds'], 1)} s) to "
-            f"{trunc(proj['projected_full_build_seconds'], 1)} s for {proj['full_n']} vectors "
-            f"(n log n; limit {trunc(proj['limit_seconds'], 1)} s). M2 baseline (pre-layout, "
-            f"scalar) versus the all-off scalar variant on an index with the same graph, both "
-            f"single-threaded and pinned, {reps} repetitions; the all-off variant was measured "
-            f"just before and just after every M2 repetition:\n\n"
-            + table(["ef", "recall@10", "M2 QPS", "all-off QPS before (vs M2)",
-                     "all-off QPS after (vs M2)"], rows)
-            + f"\n\nResult-id check (`layout_check.json`): M2 ids equal the all-off variant's: "
-            f"{chk['ok']}.\n")
+    for ef in efs:
+        m = trip(m2_by_ef[ef]["seconds"]["raw"])
+        a = trip(bracket[ef])
+        word = ("within noise (ranges overlap)" if ranges_overlap(a, m) else
+                "faster" if a[0] > m[0] else "slower")
+        rows.append([ef, rec(m2_by_ef[ef]["recall_at_k"]), f"{qps(m[0])} ({qps(m[1])} to "
+                     f"{qps(m[2])})", f"{qps(a[0])} ({qps(a[1])} to {qps(a[2])})",
+                     f"x{ratio(a[0] / m[0])}", word])
+    out.append(table(["ef", "recall@10", "M2 QPS median (range)",
+                      f"all-off QPS median (range), all {reps + 1} samples",
+                      "all-off / M2 (medians)", "current layout is"], rows) + "\n")
+    rows = []
+    for ef in efs:
+        b, a = bracket[ef][:reps], bracket[ef][1:]
+        rows.append([ef, qps(nq / statistics.median(b)), qps(nq / statistics.median(a)),
+                     secs4(statistics.median(b)), secs4(statistics.median(a))])
+    out.append("Overlapping groups (not independent; shown only to explain the identical "
+               "values reported before):\n\n"
+               + table(["ef", f"before A_0..A_{reps - 1} QPS", f"after A_1..A_{reps} QPS",
+                        "before median s", "after median s"], rows) + "\n")
+    rows = []
+    for i in range(reps + 1):
+        row = [f"A_{i}"] + [secs4(bracket[ef][i]) for ef in efs]
+        rows.append(row)
+        if i < reps:
+            rows.append([f"M_{i}"] + [secs4(m2_by_ef[ef]["seconds"]["raw"][i]) for ef in efs])
+    out.append("Every raw timed pass, in execution order (seconds for "
+               f"{nq} queries):\n\n" + table(["run"] + [f"ef {ef} s" for ef in efs], rows)
+               + "\n")
+    out.append(f"Result-id check (`layout_check.json`): M2 ids equal the all-off variant's: "
+               f"{chk['ok']}.\n")
+    return "\n".join(out)
 
 
 # ------------------------------------------------------------ profile
@@ -524,8 +673,8 @@ def sec_repeat(R):
                      "same result ids"], rows) + "\n")
 
 
-@section
-def sec_spread(R):
+def high_spread(R):
+    """[where, label, passes, spread%] for every measured point above SPREAD_LIMIT."""
     flagged = []
 
     def add(where, label, secs):
@@ -547,6 +696,12 @@ def sec_spread(R):
     if os.path.exists(R.path("layout", "m2.json")):
         for r in load(R.path("layout", "m2.json"))["results"]:
             add("layout", f"M2 ef {r['ef']}", r["seconds"]["raw"])
+    return flagged
+
+
+@section
+def sec_spread(R):
+    flagged = high_spread(R)
     head = (f"Points whose timed passes spread by more than {trunc(100 * SPREAD_LIMIT, 0)}% "
             "((max - min) / median):")
     if not flagged:
@@ -605,24 +760,26 @@ def plot_recall_qps(R, out):
 
 def plot_ablation(R, out):
     times, _, nq, efs = ablation_data(R)
-    chain = [(0, 0, 0, 0), (1, 0, 0, 0), (1, 1, 0, 0), (1, 1, 1, 0), (1, 1, 1, 1)]
+    chain = CHAIN
     names = ["all off (scalar)", "+ epoch visited", "+ alloc-free heaps", "+ prefetch",
              "+ AVX2+FMA"]
     pts = efs["points"]
     fig, axes = plt.subplots(1, len(pts), figsize=(9, 3.6), dpi=150, sharey=True)
     for ax, p in zip(axes, pts):
-        q = [abl_qps(times, nq, c, p["ef"])[0] for c in chain]
+        trips = [abl_qps(times, nq, c, p["ef"]) for c in chain]
+        q = [t[0] for t in trips]
         y = list(range(len(chain)))[::-1]
         ax.barh(y, q, color=COLOR["ours"], height=0.6)
-        for yi, qi in zip(y, q):
-            ax.text(qi, yi, f" x{ratio(qi / q[0])}", va="center", fontsize=8, color="#3d3d3a")
+        for k, (yi, qi) in enumerate(zip(y, q)):
+            label = " baseline" if k == 0 else " total " + mark(qi / q[0], trips[k], trips[0])
+            ax.text(qi, yi, label, va="center", fontsize=8, color="#3d3d3a")
         ax.set_yticks(y, names)
         ax.set_xlabel("QPS, single thread")
         ax.set_title(f"ef {p['ef']} (recall@10 >= {p['target']})", loc="left", fontsize=10)
-        ax.set_xlim(0, max(q) * 1.25)
+        ax.set_xlim(0, max(q) * 1.45)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
-    fig.suptitle("Cumulative ablation (speedup over all off, scalar kernel)", x=0.01,
+    fig.suptitle("Cumulative ablation (median QPS; ratio over all off, scalar kernel)", x=0.01,
                  ha="left", fontsize=11)
     fig.tight_layout()
     fig.savefig(out)
@@ -647,6 +804,7 @@ def main():
         "threads": sec_thread_consistency(R), "build": sec_build(R), "load": sec_load(R),
         "ablation": sec_ablation(R), "layout": sec_layout(R), "profile": sec_profile(R),
         "repeat": sec_repeat(R), "spread": sec_spread(R), "env": sec_environment(R),
+        "noise": sec_noise(R),
         "stages": stage_times(R),
     }
     plots = []
@@ -659,7 +817,7 @@ def main():
 
     def body(level, img_prefix):
         h = "#" * level
-        parts = [secs["verdict"], f"{h} Headline: QPS at the first ef reaching each recall "
+        parts = [secs["verdict"], secs["noise"], f"{h} Headline: QPS at the first ef reaching each recall "
                  "target\n", "Each system at its own first swept ef whose recall@10 reaches the "
                  "target (no interpolation).\n", secs["headline"], secs["threads"]]
         if "recall_vs_qps.png" in plots:
