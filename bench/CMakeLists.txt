@@ -81,13 +81,35 @@ add_library(hnsw_bench STATIC
   common/proc.cpp
   common/stats.cpp)
 add_dependencies(hnsw_bench bench_git_info)
-# hnswlib v0.9.0 over-reads one id past the end of a neighbor list to compute
-# a prefetch address (hnswalg.h, searchBaseLayer: *(datal + j + 1)); ASan
-# rightly aborts on it. The baseline is not ours to patch, so in ASan builds
-# its one translation unit is compiled without ASan (UBSan stays on).
+# The baseline is not ours to patch, so sanitizer findings inside hnswlib
+# v0.9.0 are exempted for its one translation unit only:
+# - ASan: it over-reads one id past the end of a neighbor list to compute a
+#   prefetch address (hnswalg.h, searchBaseLayer: *(datal + j + 1)).
+# - UBSan (reported by clang), two checks only; the others stay on:
+#   alignment: it stores the 8-byte label at an unaligned offset
+#   (label_offset_ = links + 4 * dim) through a misaligned labeltype*
+#   (hnswalg.h, addPoint: memcpy(getExternalLabeLp(cur_c), ...));
+#   pointer-overflow: the prefetch over-read above yields an arbitrary id that
+#   is scaled into a pointer (searchBaseLayerST: data_level0_memory_ +
+#   (*(data + j + 1)) * size_data_per_element_).
+# - TSan: addPoint locks the new node's link-list mutex and then the global
+#   mutex; for a node above the current top level it keeps the global mutex
+#   while searchBaseLayer locks other nodes' link-list mutexes. TSan reports
+#   the opposite orders as a potential deadlock. The benchmark inserts into
+#   hnswlib from one thread (bench_build.cpp), so the cycle cannot deadlock.
+#   Lock-order checking is turned off for the test that runs hnswlib
+#   (race detection stays on); name-based suppressions are not used because
+#   they need a symbolizer, which a minimal toolchain may lack.
+set(_hnswlib_no_sanitize "")
 if(HNSW_SANITIZE MATCHES "address")
+  list(APPEND _hnswlib_no_sanitize -fno-sanitize=address)
+endif()
+if(HNSW_SANITIZE MATCHES "undefined")
+  list(APPEND _hnswlib_no_sanitize -fno-sanitize=alignment,pointer-overflow)
+endif()
+if(_hnswlib_no_sanitize)
   set_source_files_properties(common/hnswlib_index.cpp PROPERTIES
-                              COMPILE_OPTIONS "-fno-sanitize=address")
+                              COMPILE_OPTIONS "${_hnswlib_no_sanitize}")
 endif()
 target_include_directories(hnsw_bench PUBLIC common PRIVATE ${_gen})
 # SYSTEM: hnswlib's own warnings are not ours to fix.
@@ -115,3 +137,7 @@ target_include_directories(test_bench_smoke PRIVATE ${PROJECT_SOURCE_DIR}/tests)
 add_dependencies(test_bench_smoke
                  bench_build bench_search bench_loadtime bench_gt bench_make_synthetic)
 add_test(NAME test_bench_smoke COMMAND test_bench_smoke $<TARGET_FILE_DIR:bench_build>)
+if(HNSW_SANITIZE STREQUAL "thread")
+  set_tests_properties(test_bench_smoke PROPERTIES ENVIRONMENT
+    "TSAN_OPTIONS=detect_deadlocks=0:halt_on_error=1")
+endif()

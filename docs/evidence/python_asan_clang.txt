@@ -1,0 +1,52 @@
+# scripts/sanitize_python.sh clang
+date: 2026-11-17T05:13:40Z
+commit: 780fc079be295a96b4cc595b4ca61624c5430427 (with uncommitted changes)
+python: Python 3.14.4
+module: build-san-clang-address/python/hnsw_cpp/_core.cpython-314-x86_64-linux-gnu.so
+ASan report hooks in the module: 12
+LD_PRELOAD=/usr/lib/llvm-21/lib/clang/21/lib/linux/libclang_rt.asan-x86_64.so:/usr/lib/gcc/x86_64-linux-gnu/15/libstdc++.so
+ASAN_OPTIONS=detect_leaks=0:abort_on_error=1
+
+test_concurrent_adds_are_exclusive (test_hnsw_cpp.Concurrency.test_concurrent_adds_are_exclusive) ... ok
+test_concurrent_searches_equal_sequential (test_hnsw_cpp.Concurrency.test_concurrent_searches_equal_sequential) ... ok
+test_concurrent_searches_on_loaded_index (test_hnsw_cpp.Concurrency.test_concurrent_searches_on_loaded_index) ... ok
+test_searches_while_adding (test_hnsw_cpp.Concurrency.test_searches_while_adding) ... ok
+test_header_bitflip_is_valueerror (test_hnsw_cpp.CorruptFiles.test_header_bitflip_is_valueerror) ... ok
+test_missing_file_is_oserror (test_hnsw_cpp.CorruptFiles.test_missing_file_is_oserror) ... ok
+test_nan_vector_is_rejected_by_deep_validation_only (test_hnsw_cpp.CorruptFiles.test_nan_vector_is_rejected_by_deep_validation_only) ... ok
+test_truncated_and_garbage_are_valueerror (test_hnsw_cpp.CorruptFiles.test_truncated_and_garbage_are_valueerror) ... ok
+test_failed_add_leaves_index_identical_and_usable (test_hnsw_cpp.FailedAdd.test_failed_add_leaves_index_identical_and_usable) ... ok
+test_bad_load_arguments (test_hnsw_cpp.SaveLoad.test_bad_load_arguments) ... ok
+test_close (test_hnsw_cpp.SaveLoad.test_close) ... ok
+test_defaults_and_pathlike (test_hnsw_cpp.SaveLoad.test_defaults_and_pathlike) ... ok
+test_empty_index_roundtrip (test_hnsw_cpp.SaveLoad.test_empty_index_roundtrip) ... ok
+test_loaded_outlives_source_index_and_file (test_hnsw_cpp.SaveLoad.test_loaded_outlives_source_index_and_file) ... ok
+test_modes_and_validations_are_bit_identical (test_hnsw_cpp.SaveLoad.test_modes_and_validations_are_bit_identical) ... ok
+test_save_overwrite_does_not_disturb_loaded (test_hnsw_cpp.SaveLoad.test_save_overwrite_does_not_disturb_loaded) ... ok
+test_save_to_missing_directory_is_oserror (test_hnsw_cpp.SaveLoad.test_save_to_missing_directory_is_oserror) ... ok
+test_empty_index_and_empty_queries (test_hnsw_cpp.SearchQuality.test_empty_index_and_empty_queries) ... ok
+test_k_larger_than_size_pads (test_hnsw_cpp.SearchQuality.test_k_larger_than_size_pads) ... ok
+test_one_dimensional_query (test_hnsw_cpp.SearchQuality.test_one_dimensional_query) ... ok
+test_pool_is_reused_between_calls (test_hnsw_cpp.SearchQuality.test_pool_is_reused_between_calls) ... ok
+test_properties_and_ids (test_hnsw_cpp.SearchQuality.test_properties_and_ids) ... ok
+test_recall_and_squared_distances (test_hnsw_cpp.SearchQuality.test_recall_and_squared_distances) ... ok
+test_squared_not_rooted (test_hnsw_cpp.SearchQuality.test_squared_not_rooted) ... ok
+test_threads_give_identical_results (test_hnsw_cpp.SearchQuality.test_threads_give_identical_results) ... ok
+test_bad_constructor_arguments (test_hnsw_cpp.Validation.test_bad_constructor_arguments) ... ok
+test_bad_search_arguments (test_hnsw_cpp.Validation.test_bad_search_arguments) ... ok
+test_contiguity_and_alignment (test_hnsw_cpp.Validation.test_contiguity_and_alignment) ... ok
+test_inputs_are_not_modified (test_hnsw_cpp.Validation.test_inputs_are_not_modified) ... ok
+test_loaded_index_cannot_be_constructed (test_hnsw_cpp.Validation.test_loaded_index_cannot_be_constructed) ... ok
+test_non_finite_vectors (test_hnsw_cpp.Validation.test_non_finite_vectors) ... ok
+test_shape_and_dim (test_hnsw_cpp.Validation.test_shape_and_dim) ... ok
+test_wrong_type_and_dtype (test_hnsw_cpp.Validation.test_wrong_type_and_dtype) ... ok
+
+----------------------------------------------------------------------
+Ran 33 tests in 7.840s
+
+OK
+added 5000 vectors, index.size = 5000
+query 0: ids [3473, 3982, 4978], squared distances [5.872591972351074, 6.208147048950195, 6.274087429046631]
+recall@10 vs exact brute force: 0.9750
+loaded index (5000 x 64) gives identical results: True
+exit status: 0

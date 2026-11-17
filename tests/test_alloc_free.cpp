@@ -13,10 +13,14 @@ using test::g_allocations;
 
 using namespace hnsw;
 
+// The compiler may elide a new-expression whose result does not escape (GCC
+// does at -O1), so the pointer is published through a volatile.
+static std::vector<int>* volatile g_escape;
+
 static void test_counter_works() {
   const long before = g_allocations;
-  std::vector<int>* v = new std::vector<int>(10);
-  delete v;
+  g_escape = new std::vector<int>(10);
+  delete g_escape;
   CHECK(g_allocations - before >= 2);
 }
 

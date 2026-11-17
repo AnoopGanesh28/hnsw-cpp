@@ -54,6 +54,20 @@ if(NOT HNSW_SANITIZE STREQUAL "off")
   endif()
   add_compile_options(-fsanitize=${HNSW_SANITIZE} -fno-omit-frame-pointer)
   add_link_options(-fsanitize=${HNSW_SANITIZE})
+  if(HNSW_SANITIZE MATCHES "undefined")
+    # Any UBSan finding aborts the test instead of printing and continuing.
+    add_compile_options(-fno-sanitize-recover=all)
+    add_link_options(-fno-sanitize-recover=all)
+  endif()
+  if(HNSW_SANITIZE STREQUAL "thread" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # Clang links its static TSan runtime whole-archive, so its operator
+    # new/delete collide with the counting replacements in tests/alloc_hook.h.
+    # With the shared runtime (as GCC uses) the executable's definitions win.
+    execute_process(COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libclang_rt.tsan-x86_64.so
+                    OUTPUT_VARIABLE _tsan_rt OUTPUT_STRIP_TRAILING_WHITESPACE)
+    get_filename_component(_tsan_rt_dir "${_tsan_rt}" DIRECTORY)
+    add_link_options(-shared-libsan "LINKER:-rpath,${_tsan_rt_dir}")
+  endif()
 endif()
 
 add_library(hnsw STATIC

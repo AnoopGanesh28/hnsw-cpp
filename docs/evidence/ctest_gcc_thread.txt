@@ -1,0 +1,63 @@
+# scripts/sanitize.sh gcc thread
+date: 2026-11-17T05:07:16Z
+commit: 780fc079be295a96b4cc595b4ca61624c5430427 (with uncommitted changes)
+compiler: g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+kernel: Linux 6.18.33.1-microsoft-standard-WSL2
+HNSW_SANITIZE=thread HNSW_BUILD_BENCH=ON HNSW_BUILD_PYTHON=ON
+compile flags (test_distance):  -O1 -g -std=c++17 -Wall -Wextra -march=native -fsanitize=thread -fno-omit-frame-pointer
+ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
+UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1
+
+Test project /home/anoop/hnsw-cpp/build-san-gcc-thread
+      Start  1: test_distance
+      Start  2: test_io
+      Start  3: test_brute_force
+      Start  4: test_recall
+ 1/23 Test  #1: test_distance ....................   Passed    0.02 sec
+      Start  5: test_hnsw_invariants
+ 2/23 Test  #2: test_io ..........................   Passed    0.02 sec
+ 3/23 Test  #4: test_recall ......................   Passed    0.02 sec
+      Start  6: test_hnsw_recall
+      Start  7: test_hnsw_connectivity
+ 4/23 Test  #3: test_brute_force .................   Passed    0.04 sec
+      Start  8: test_hnsw_heuristic
+ 5/23 Test  #8: test_hnsw_heuristic ..............   Passed    0.08 sec
+      Start  9: test_hnsw_edge_cases
+ 6/23 Test  #9: test_hnsw_edge_cases .............   Passed    0.06 sec
+      Start 10: test_hnsw_determinism
+ 7/23 Test #10: test_hnsw_determinism ............   Passed    1.07 sec
+      Start 11: test_layout
+ 8/23 Test #11: test_layout ......................   Passed    0.21 sec
+      Start 12: test_scratch
+ 9/23 Test #12: test_scratch .....................   Passed    0.48 sec
+      Start 13: test_alloc_free
+10/23 Test #13: test_alloc_free ..................   Passed    2.22 sec
+      Start 14: test_distance_avx2
+11/23 Test  #5: test_hnsw_invariants .............   Passed    4.52 sec
+      Start 15: test_hnsw_avx2
+12/23 Test #14: test_distance_avx2 ...............   Passed    0.41 sec
+      Start 16: test_golden
+13/23 Test #16: test_golden ......................   Passed    2.83 sec
+      Start 17: test_index_file
+14/23 Test  #7: test_hnsw_connectivity ...........   Passed   18.87 sec
+      Start 18: test_index_file_corrupt
+15/23 Test  #6: test_hnsw_recall .................   Passed   20.89 sec
+      Start 19: test_thread_pool
+16/23 Test #19: test_thread_pool .................   Passed    0.45 sec
+      Start 20: test_batch
+17/23 Test #18: test_index_file_corrupt ..........   Passed    3.55 sec
+      Start 21: test_concurrent_search
+18/23 Test #21: test_concurrent_search ...........   Passed    4.00 sec
+      Start 22: test_bench_util
+19/23 Test #20: test_batch .......................   Passed    5.30 sec
+      Start 23: test_bench_smoke
+20/23 Test #22: test_bench_util ..................   Passed    0.24 sec
+21/23 Test #17: test_index_file ..................   Passed   21.98 sec
+22/23 Test #23: test_bench_smoke .................   Passed   17.79 sec
+23/23 Test #15: test_hnsw_avx2 ...................   Passed   40.43 sec
+
+100% tests passed, 0 tests failed out of 23
+
+Total Test time (real) =  44.98 sec
+ctest exit status: 0
