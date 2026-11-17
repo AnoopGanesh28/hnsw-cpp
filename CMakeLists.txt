@@ -22,6 +22,8 @@ set_property(CACHE HNSW_SANITIZE PROPERTY STRINGS
 
 option(HNSW_BUILD_BENCH "Build the benchmark tools in bench/ (run bench/get_hnswlib.sh first)" OFF)
 
+option(HNSW_BUILD_PYTHON "Build the Python extension module in python/ (needs pybind11 and Python development files)" OFF)
+
 option(HNSW_OPT_EPOCH_VISITED "Epoch-tagged visited list in SearchScratch" ON)
 option(HNSW_OPT_ALLOC_FREE_HEAPS "Fixed-capacity search heaps in SearchScratch" ON)
 option(HNSW_OPT_PREFETCH "Software prefetch in the neighbor-expansion loop" ON)
@@ -108,6 +110,12 @@ hnsw_add_test(test_thread_pool)
 hnsw_add_test(test_batch)
 hnsw_add_test(test_concurrent_search)
 target_compile_options(test_golden PRIVATE ${HNSW_STRICT_FP})
+
+if(HNSW_BUILD_PYTHON)
+  # The extension is a shared object that links the static library.
+  set_target_properties(hnsw PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  add_subdirectory(python)
+endif()
 
 if(HNSW_BUILD_BENCH)
   add_subdirectory(bench)

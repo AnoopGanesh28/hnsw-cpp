@@ -1,0 +1,24 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.13"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "hnsw-cpp"
+version = "0.1.0"
+description = "From-scratch HNSW approximate nearest-neighbor index (squared L2) with Python bindings"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+dependencies = ["numpy"]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+wheel.packages = ["python/hnsw_cpp"]
+# Only the extension; the C++ tests and benchmarks are not part of the package.
+build.targets = ["_core"]
+
+[tool.scikit-build.cmake.define]
+HNSW_BUILD_PYTHON = "ON"
+# Portable wheel: no -march=native. The AVX2 kernel keeps its per-file flags and
+# is chosen at run time.
+HNSW_NATIVE = "OFF"
