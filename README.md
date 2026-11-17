@@ -542,10 +542,11 @@ Effectiveness check: with this line removed from deep validation (`if (x >= n) {
 
 #### Continuous integration
 
-Workflow `CI`, run [44111024598](https://github.com/AnoopGanesh28/hnsw-cpp/actions/runs/44111024598) on commit `d675fa8` ("docs: design document"), event `push`: **success**. Later commits are not covered by this record.
+Workflow `CI`, run [44112293359](https://github.com/AnoopGanesh28/hnsw-cpp/actions/runs/44112293359) on commit `cade0f2` ("ci: run the C++ example and check the README against its evidence"), event `push`: **success**. Later commits are not covered by this record.
 
 | Job | Conclusion |
 |---|---|
+| README matches its evidence | success |
 | address+undefined (clang) | success |
 | bench-smoke | success |
 | fuzz-smoke | success |
