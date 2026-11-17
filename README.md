@@ -1,72 +1,114 @@
 # hnsw-cpp
 
-From-scratch HNSW approximate nearest neighbor index in C++17.
+[![CI](https://github.com/AnoopGanesh28/hnsw-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/AnoopGanesh28/hnsw-cpp/actions/workflows/ci.yml)
+
+A from-scratch C++17 implementation of HNSW (Hierarchical Navigable Small World graphs,
+Malkov and Yashunin) for approximate nearest-neighbor search under squared L2 distance, on
+x86-64. It is built to be measured: it is benchmarked against hnswlib on SIFT1M, and it is
+tested under sanitizers and fuzzed, with the evidence saved in the repository.
+
+## Features
+
+- HNSW build and search following the paper's Algorithms 1, 2, 4 and 5 (see [docs/DESIGN.md](docs/DESIGN.md)).
+- Contiguous, cache-line-aligned layer-0 records and an index-based graph (no stored pointers).
+- Epoch-tagged visited marks, allocation-free heaps, software prefetch: each can be switched off
+  at build time for ablation.
+- AVX2+FMA distance kernel chosen at run time, with a scalar reference.
+- A versioned, checksummed index file format. A file is memory-mapped and searched in place, or read
+  into memory, with bit-identical results. Files are treated as untrusted: deep validation makes any
+  accepted file safe to search ([docs/FORMAT.md](docs/FORMAT.md)).
+- A thread pool and a batch query API; searches on one index may run concurrently.
+- Python bindings (pybind11, numpy) with type stubs.
+- Benchmarks against hnswlib on SIFT1M with raw results, ablation and a profile.
+- ASan, UBSan and TSan runs with GCC and clang, libFuzzer targets for the loader and the vector
+  readers, and GitHub Actions CI.
 
 ## Status
 
-Work in progress. See docs/TASK.md.
+Milestone state, and the command that reproduces its evidence. Details of every command are in
+[Reproducing the results](#reproducing-the-results).
 
-| Milestone | State |
-|---|---|
-| M1: CMake project, fvecs/ivecs IO, brute-force kNN, scalar L2, unit tests | done |
-| M2: HNSW build and search (scalar, single-threaded baseline) | done |
-| M3: contiguous layout, epoch visited list, allocation-free heaps, prefetch, AVX2+FMA kernel | done |
-| M4: index file format (save, mmap/read load, validation), thread pool, batch query API | done |
-| M5a: benchmark infrastructure (dataset scripts, ground-truth validation, build/search/load-time harness with hnswlib baseline, tests) | done |
-| M5b: SIFT1M runs, ablation, profile, plot, results table | done (see [Results](#results)) |
-| M6: Python bindings (pybind11), tests and example | done (see [Python bindings](#python-bindings-m6)) |
-| M7a: sanitizer runs (ASan, UBSan, TSan with GCC and clang), libFuzzer targets for the loader and the vector readers | done (see [Sanitizers and fuzzing](#sanitizers-and-fuzzing-m7a)) |
-| M7b: CI, design doc, README | pending |
+| Milestone | State | Reproduce |
+|---|---|---|
+| M1: build system, fvecs/ivecs IO, brute-force kNN, scalar L2 | done | `ctest --test-dir build -R "test_io\|test_distance\|test_brute_force\|test_recall"` |
+| M2: HNSW build and search (scalar, single-threaded baseline, tag `m2-scalar-baseline`) | done | `ctest --test-dir build -R "test_hnsw_\|test_golden"` |
+| M3: contiguous layout, epoch visited list, allocation-free heaps, prefetch, AVX2+FMA kernel | done | `ctest --test-dir build -R "test_layout\|test_scratch\|test_alloc_free\|avx2"` |
+| M4: index file format (save, mmap/read load, validation), thread pool, batch API | done | `ctest --test-dir build -R "test_index_file\|test_thread_pool\|test_batch\|test_concurrent"` |
+| M5a: benchmark tools, dataset scripts, ground-truth validation, tests | done | `ctest --test-dir build-bench -R bench` (configured with `-DHNSW_BUILD_BENCH=ON`) |
+| M5b: SIFT1M runs, ablation, profile, plot, results | done, on one machine (see below) | `bench/run_all.sh`, then `python3 bench/make_report.py --update-readme` and `python3 bench/check_readme.py` |
+| M6: Python bindings, tests, example | done | `pip install .` then the Python commands below; `ctest` with `-DHNSW_BUILD_PYTHON=ON` |
+| M7a: sanitizers (ASan, UBSan, TSan; GCC and clang), libFuzzer targets, seed corpus, replay tests | done | `scripts/sanitize.sh <gcc\|clang> <mode>`, `scripts/sanitize_python.sh`, `scripts/run_fuzz.sh` |
+| M7b: CI, design document, README, quality report | done | `python3 scripts/quality_report.py --check`; CI runs on every push |
 
-Benchmark results are in [Results](#results). The tools and the method are described in
-[bench/README.md](bench/README.md). SIFT1M downloads and validates on this machine
-(`bench/get_sift.sh`), so no synthetic substitute is needed.
+What was not measured, or not claimed:
 
-### Build options (M3)
+- All benchmark numbers come from one laptop running Linux under WSL2 on Windows, one dataset
+  (SIFT1M), one `M` and `efConstruction` pair for both systems, and squared L2 only. The
+  cold-cache load times drop the Linux VM's page cache, not the Windows host's, so "cold" means
+  cold for Linux (see [Results](#results)).
+- The Python bindings have correctness tests but no performance measurement.
+- Nothing was measured on non-x86 CPUs, other compilers than GCC and clang, or other operating
+  systems; the code is x86-64 only.
+- Concurrent insertion does not exist, so build time is single-threaded for both systems.
 
-Each optimization can be switched off for ablation; all default to ON.
+## Build and test
 
-| CMake option | OFF behavior |
-|---|---|
-| `HNSW_OPT_EPOCH_VISITED` | visited marks are a fresh byte array per search pass |
-| `HNSW_OPT_ALLOC_FREE_HEAPS` | search heaps are `std::priority_queue` |
-| `HNSW_OPT_PREFETCH` | no software prefetch |
-| `HNSW_NATIVE` | no `-march=native`; the AVX2 kernel still builds with per-file flags and is chosen at run time |
+Requirements (Ubuntu or WSL2 Ubuntu): an x86-64 CPU (AVX2+FMA is used if present), CMake 3.16 or
+newer, and GCC or clang with C++17. The project is built and tested in CI with the compilers
+that ship in the current `ubuntu-latest` image (GCC 15.2 and clang 21.1 at the time of the saved CI
+run). For the Python package, Python 3.10 or newer; for the in-tree Python build, `pybind11` and the
+Python development files.
 
-The distance kernel is chosen at run time: AVX2+FMA when the CPU supports it, else scalar. Pass `hnsw::l2_squared_scalar` explicitly to use the scalar reference.
+```
+sudo apt install build-essential cmake git
+git clone https://github.com/AnoopGanesh28/hnsw-cpp.git && cd hnsw-cpp
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+ctest --test-dir build --output-on-failure -j
+build/example_quickstart            # the C++ example below
+```
 
-### Index files (M4)
+Tests that need AVX2+FMA exit with the skip code (77) and are reported as skipped on a CPU without it.
 
-`HnswIndex::save(path)` writes the index atomically (temporary file plus rename).
-`LoadedIndex::open(path, options)` loads it read-only, either memory-mapped
-(`LoadMode::Mmap`, searched in place) or read into memory (`LoadMode::Read`), with the
-same search API and bit-identical results. The byte-level format and every check the
-loader makes are in [docs/FORMAT.md](docs/FORMAT.md). Files are treated as untrusted:
-with `validate_deep` on (the default) any file that loads is safe to search; with it
-off, only load files you trust. `LoadedIndex::from_memory(data, size, options)` runs the same
-validation on a file image already in memory (64-byte aligned) and searches it in place.
+| CMake option | Default | Meaning |
+|---|---|---|
+| `HNSW_NATIVE` | ON | compile with `-march=native`. OFF builds a portable binary; the AVX2 kernel still builds with per-file flags and is chosen at run time |
+| `HNSW_OPT_EPOCH_VISITED` | ON | OFF: visited marks are a fresh byte array per search pass |
+| `HNSW_OPT_ALLOC_FREE_HEAPS` | ON | OFF: search heaps are `std::priority_queue` |
+| `HNSW_OPT_PREFETCH` | ON | OFF: no software prefetch |
+| `HNSW_SANITIZE` | off | `address`, `undefined`, `address,undefined` or `thread` (thread cannot be combined with address) |
+| `HNSW_BUILD_BENCH` | OFF | build the benchmark tools (needs `bench/get_hnswlib.sh` first) |
+| `HNSW_BUILD_PYTHON` | OFF | build the Python extension and register its tests (needs pybind11 and Python development files) |
+| `HNSW_BUILD_FUZZ` | OFF | build the libFuzzer targets (clang with `HNSW_SANITIZE=address,undefined`) |
 
-### Concurrent search (M4)
+Release builds use `-O3`; warnings are on (`-Wall -Wextra`).
 
-`ThreadPool(n_threads)` (`include/hnsw/thread_pool.h`) is a persistent pool reused across
-calls; `n_threads = 0` uses `std::thread::hardware_concurrency()`. `search_batch(queries,
-n_queries, k, ef, out_ids, out_dists, pool)` on `HnswIndex` and `LoadedIndex` writes
-`n_queries * k` results row-major into caller arrays, padding short rows with
-`hnsw::kNoNeighbor` (`UINT32_MAX`) and `+infinity`, and returns exactly what sequential
-`search` returns. Each pool thread keeps its own `SearchScratch`. Calling `search` from
-your own threads at the same time is also safe, as long as each thread uses its own
-`SearchScratch` and nothing is inserting.
+## Usage
 
-`-DHNSW_SANITIZE=thread` builds with ThreadSanitizer (not combinable with `address`).
+### C++
 
-### Python bindings (M6)
+[examples/quickstart.cpp](examples/quickstart.cpp), built as `example_quickstart`:
 
-`import hnsw_cpp` offers `Index` (build, `add`, `search`, `save`), `load(path, mode, validate)`
-returning a read-only `LoadedIndex`, and type stubs. Distances are squared L2; missing results
-are id `-1` with distance `+inf`. Inputs must already be C-contiguous float32 numpy arrays;
-nothing is copied or converted, and wrong input raises `TypeError` or `ValueError` saying how
-to fix it. Any number of searches may run at once; `add` is exclusive. `validate="shallow"`
-requires a trusted file.
+```cpp
+hnsw::HnswParams params;
+params.M = 16;
+params.ef_construction = 200;
+hnsw::HnswIndex index(dim, params);                    // squared L2, fastest kernel for this CPU
+for (size_t i = 0; i < n; ++i) index.add(base + i * dim);
+
+hnsw::KnnResult r = index.search(query, k, ef);        // r.ids, r.dists (squared), ascending
+hnsw::ThreadPool pool(0);                              // 0 = one thread per hardware thread
+index.search_batch(queries, nq, k, ef, ids, dists, pool);
+
+index.save("index.hnsw");                              // atomic: temporary file, then rename
+hnsw::LoadedIndex loaded = hnsw::LoadedIndex::open("index.hnsw");   // mmap, deep validation
+loaded.search_batch(queries, nq, k, ef, ids, dists, pool);          // bit-identical results
+```
+
+`LoadOptions` selects `LoadMode::Read` instead of mmap, or `validate_deep = false` for files you
+trust. `LoadedIndex::from_memory(data, size)` validates and searches a file image already in memory.
+
+### Python
 
 ```
 python3 -m venv .venv && . .venv/bin/activate
@@ -75,27 +117,28 @@ python python/examples/quickstart.py
 python -m unittest discover -s python/tests
 ```
 
-In-tree: `cmake -B build -DHNSW_BUILD_PYTHON=ON` (needs pybind11 and Python development files)
-registers `python_tests` and `python_quickstart` with ctest, except in sanitizer builds, where the
-extension is built but not run by ctest (`scripts/sanitize_python.sh` runs it under ASan). The Python package makes no performance claim; the benchmarks
-below measure the C++ library only.
+```python
+import numpy as np, hnsw_cpp
 
-### Sanitizers and fuzzing (M7a)
+base = np.random.default_rng(0).random((5000, 64), dtype=np.float32)
+index = hnsw_cpp.Index(64, M=16, ef_construction=200)
+index.add(base)
+ids, sq_dists = index.search(base[:10], 10, 100)         # squared L2; missing results are id -1
+index.save("index.hnsw")
+with hnsw_cpp.load("index.hnsw", mode="mmap", validate="deep") as loaded:
+    ids2, _ = loaded.search(base[:10], 10, 100, threads=0)
+```
 
-`scripts/sanitize.sh <gcc|clang> <address|undefined|address+undefined|thread>` builds a fresh
-tree with the benchmark tools and the Python extension and runs the full ctest suite; UBSan
-aborts on the first finding and ASan runs with leak detection. `scripts/sanitize_python.sh
-<gcc|clang>` runs the Python tests on the ASan-built extension with the runtime preloaded.
-The saved outputs of every combination are in [docs/evidence](docs/evidence).
+`Index` offers build, `add`, `search` and `save`; `load(path, mode, validate)` returns a read-only
+`LoadedIndex`. Inputs must already be C-contiguous float32 numpy arrays; nothing is copied or converted,
+and wrong input raises `TypeError` or `ValueError` saying how to fix it. Any number of searches may run
+at once; `add` is exclusive. `validate="shallow"` requires a trusted file.
 
-libFuzzer targets for the index loader and the fvecs/ivecs readers live in
-[tests/fuzz](tests/fuzz/README.md) (`-DHNSW_BUILD_FUZZ=ON`, clang, ASan+UBSan). The loader
-target drives the same validation code as `LoadedIndex::open` and searches every image that
-deep validation accepts. Seeds, the minimized corpus and past crashes are replayed by ctest in
-every build. Fuzz run logs and a summary parsed from them are in docs/evidence.
+### Index files
 
-Sanitizer findings in the hnswlib baseline (benchmark only, not our code) are exempted for its
-translation unit; the reasons are in bench/CMakeLists.txt.
+`HnswIndex::save` writes the in-memory arena verbatim, so a mapped file is searched in place with no
+translation. The byte-level format and every check the loader makes are in
+[docs/FORMAT.md](docs/FORMAT.md). The design and its trade-offs are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Results
 
@@ -434,3 +477,182 @@ Points whose timed passes spread by more than 15% ((max - min) / median):
 - Both compile with the same flags in the same binaries. Multi-thread runs use the same
   thread pool and dispatch code for both systems.
 - Peak memory comes from the kernel's VmHWM, which is not byte-exact.
+
+## Quality
+
+Everything in this block is generated by `scripts/quality_report.py` from the files in
+[docs/evidence/](docs/evidence/) (raw ctest, sanitizer, Python-under-ASan, fuzz and CI outputs).
+`python3 scripts/quality_report.py --check` fails if the block disagrees with those files, and CI runs it.
+The CI record is a run of the commit it names; it is refreshed from `gh run view` and cannot describe the
+commit that contains it.
+
+<!-- QUALITY:BEGIN -->
+_Generated by `scripts/quality_report.py` from `docs/evidence/`; do not edit by hand. `scripts/quality_report.py --check` fails if this block disagrees with those files._
+
+#### Tests (ctest)
+
+| Configuration | Build | Options | ctest entries | Passed | Failed | Skipped |
+|---|---|---|---:|---:|---:|---:|
+| gcc, canonical full | Release -O3 | BENCH=ON, PYTHON=ON, FUZZ=OFF, SANITIZE=off | 27 | 27 | 0 | 0 |
+| clang, canonical full | Release -O3 | BENCH=ON, PYTHON=ON, FUZZ=OFF, SANITIZE=off | 27 | 27 | 0 | 0 |
+| gcc, address | -O1 -g | SANITIZE=address, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+| gcc, undefined | -O1 -g | SANITIZE=undefined, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+| gcc, address+undefined | -O1 -g | SANITIZE=address,undefined, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+| gcc, thread | -O1 -g | SANITIZE=thread, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+| clang, address | -O1 -g | SANITIZE=address, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+| clang, undefined | -O1 -g | SANITIZE=undefined, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+| clang, address+undefined | -O1 -g | SANITIZE=address,undefined, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+| clang, thread | -O1 -g | SANITIZE=thread, BENCH=ON, PYTHON=ON | 25 | 25 | 0 | 0 |
+
+The canonical runs have 27 ctest entries and every sanitizer cell 25. The 25 entries in the sanitizer cells are the same entries as in the canonical runs; the 2 that exist only in the canonical runs are `python_quickstart`, `python_tests`. The sanitizer cells were configured with HNSW_BUILD_PYTHON=ON, so the extension was built there, but its tests are not registered with ctest in a sanitizer build (the interpreter is not instrumented). They are run separately under ASan, below.
+
+| Canonical run | Checks (C++ test assertions) | Failed | Entries reporting a count | Python unittests |
+|---|---:|---:|---:|---|
+| gcc | 21,227 | 0 | 23 of 27 | 33 ran, OK |
+| clang | 21,227 | 0 | 23 of 27 | 33 ran, OK |
+
+Checks are the `N checks, M failed` lines the C++ tests print; entries that do not use that helper (the Python tests, the quickstart, the replay tests, the benchmark tests) report no count and are not in the sum.
+
+#### Sanitizer matrix
+
+Full ctest suite per cell (passed/total); UBSan aborts on any finding, ASan runs with leak detection.
+
+| Compiler | address | undefined | address+undefined | thread |
+|---|---:|---:|---:|---:|
+| gcc | 25/25 | 25/25 | 25/25 | 25/25 |
+| clang | 25/25 | 25/25 | 25/25 | 25/25 |
+
+Python tests on the ASan-built extension (interpreter not instrumented, runtime preloaded):
+
+| Compiler | unittests | Result |
+|---|---:|---|
+| gcc | 33 | OK |
+| clang | 33 | OK |
+
+#### Fuzzing (libFuzzer, clang, ASan+UBSan)
+
+| Target | Wall time | Workers | Executions | Crashes | OOMs | Timeouts | Edges | Features | Committed corpus |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| fuzz_loader | 1807 s | 4 | 9,462,526 | 0 | 0 | 0 | 599 | 1,716 | 229 files, 1,010,553 bytes |
+| fuzz_fvecs | 301 s | 4 | 7,777,855 | 0 | 0 | 0 | 162 | 359 | 23 files, 3,039 bytes |
+
+Loader edge coverage plateaued early: 99% of the final 599 edges (at least 594) was reached by 4 s, and the final value was first seen at 1132 s of 1807 s. Features kept growing: 1,600 at the 56 s sample, 1,716 at the end. Read from the statistics lines of the log.
+
+Effectiveness check: with this line removed from deep validation (`if (x >= n) {`), fuzz_loader started from the seeds alone stopped on AddressSanitizer `SEGV` at a recorded wall time of 0 s (whole seconds; limit 300 s). The code was restored and verified with cmp. This was an easy bug to find, so it shows the setup works, not that it finds subtle ones.
+
+#### Continuous integration
+
+Workflow `CI`, run [44111024598](https://github.com/AnoopGanesh28/hnsw-cpp/actions/runs/44111024598) on commit `d675fa8` ("docs: design document"), event `push`: **success**. Later commits are not covered by this record.
+
+| Job | Conclusion |
+|---|---|
+| address+undefined (clang) | success |
+| bench-smoke | success |
+| fuzz-smoke | success |
+| python 3.10 | success |
+| python 3.12 | success |
+| python 3.13 | success |
+| python under ASan | success |
+| release (clang) | success |
+| release (gcc) | success |
+| thread (clang) | success |
+| thread (gcc) | success |
+<!-- QUALITY:END -->
+
+## Reproducing the results
+
+Every figure in this README comes from a file in `bench/results/` or `docs/evidence/` that one of the
+commands below wrote. Replace `build-*` directory names as you like.
+
+**Tests, canonical full configuration** (Release, benchmarks and Python on; needs hnswlib and pybind11):
+
+```
+bench/get_hnswlib.sh                          # hnswlib v0.9.0 at a pinned commit, into bench/third_party/
+scripts/ctest_full.sh gcc                     # writes docs/evidence/ctest_gcc_release.txt
+scripts/ctest_full.sh clang
+```
+
+**Sanitizers** (each builds a fresh tree and runs the full suite; the Python run needs the ASan tree from the first):
+
+```
+scripts/sanitize.sh gcc address               # also: undefined, address+undefined, thread; and clang
+scripts/sanitize_python.sh gcc                # Python tests on the ASan-built extension
+```
+
+**Fuzzing** (clang with libFuzzer; install `llvm` for symbolized traces):
+
+```
+cmake -S . -B build-fuzz -DCMAKE_CXX_COMPILER=clang++ -DHNSW_SANITIZE=address,undefined -DHNSW_BUILD_FUZZ=ON
+cmake --build build-fuzz -j
+scripts/run_fuzz.sh build-fuzz loader 1800 4  # log: docs/evidence/fuzz_loader.log; minimizes the corpus
+scripts/run_fuzz.sh build-fuzz fvecs 300 4
+python3 scripts/fuzz_summary.py docs/evidence/fuzz_loader.log docs/evidence/fuzz_fvecs.log \
+  > docs/evidence/fuzz_summary.json
+```
+
+Seeds, the minimized corpus and past crashes are replayed by `ctest` in every build
+(`fuzz_replay_loader`, `fuzz_replay_fvecs`); see [tests/fuzz/README.md](tests/fuzz/README.md).
+
+**CI record and the Quality block:**
+
+```
+gh run view <run-id> --json databaseId,workflowName,displayTitle,event,headBranch,headSha,status,conclusion,createdAt,updatedAt,url,jobs \
+  > docs/evidence/ci_latest.json
+python3 scripts/quality_report.py --update-readme
+```
+
+**Benchmarks** (long-running; `bench/results/stage_times.tsv` records how long each stage took on the
+machine that produced the committed results; do not run other heavy work meanwhile). Needs `python3` with
+`matplotlib`, `taskset`, and `perf` for the profile stage. Timed stages refuse to start without
+`bench/results/env_manual.txt`, a hand-written note of the machine's power and session settings, which
+every result file embeds.
+
+```
+bench/get_hnswlib.sh
+cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DHNSW_BUILD_BENCH=ON
+cmake --build build-bench -j
+bench/get_sift.sh build-bench                 # downloads and validates SIFT1M into bench/data/sift/
+bench/run_all.sh                              # stages: build s0 s1 s2 s3 s4 s5 s6 s7 (see its header)
+bench/run_all.sh s3                           # prints the cold-cache command (needs sudo): run it yourself,
+                                              # it is also saved in bench/results/cold_loadtime_command.txt
+python3 bench/make_report.py --update-readme  # summary.md, plots and the Results block
+python3 bench/check_readme.py                 # every number in the block is traceable; no numbers elsewhere
+```
+
+The methods and every tool's flags are in [bench/README.md](bench/README.md). The golden test's
+expected values are regenerated by `tests/gen_golden.sh` (it builds the `m2-scalar-baseline` tag).
+
+## Limitations
+
+- x86-64 only; the file format is little-endian and big-endian hosts are refused.
+- Squared L2 only. The format has a metric field but defines only one metric.
+- Insertion is single-threaded; there are no deletes, no updates and no filtered search.
+- The graph must fit in memory (or be memory-mapped from a file that does): there is no out-of-core
+  construction.
+- Index files are larger than hnswlib's because records are padded to cache-line boundaries.
+- A memory-mapped index file must not be truncated or modified while it is loaded.
+- With many exact duplicate vectors, search can return fewer than `k` results (a known HNSW behavior,
+  covered by a test); see [docs/DESIGN.md](docs/DESIGN.md).
+- In Python, the shared lock favors readers, so `add` can wait under a continuous stream of searches; the
+  type stub is hand-written.
+- Benchmark results are from one machine under WSL2 and are noisy; the Results section says which
+  comparisons are distinguishable from noise and which are not.
+
+## Future work
+
+- Concurrent inserts.
+- Deletes and updates.
+- Filtered search.
+- GPU search or construction.
+- Graphs larger than RAM beyond what mmap gives.
+- Quantization (scalar or product) for smaller indexes.
+- Inner-product and cosine metrics.
+
+## Documentation
+
+- [docs/DESIGN.md](docs/DESIGN.md): how the implementation follows the paper, the memory layout, search path,
+  concurrency, validation and fuzzing, testing, benchmark method, known limits.
+- [docs/FORMAT.md](docs/FORMAT.md): the index file format and everything the loader checks.
+- [bench/README.md](bench/README.md): benchmark tools and method.
+- [tests/fuzz/README.md](tests/fuzz/README.md): fuzz targets, corpus and how to run them.
+- [docs/TASK.md](docs/TASK.md): the original project specification.
