@@ -70,6 +70,10 @@ build/example_quickstart            # the C++ example below
 
 Tests that need AVX2+FMA exit with the skip code (77) and are reported as skipped on a CPU without it.
 
+The number of ctest entries depends on the options: `HNSW_BUILD_BENCH` adds the benchmark tests and
+`HNSW_BUILD_PYTHON` adds the Python tests, except in sanitizer builds. The Quality block below gives the
+counts of the canonical configuration and of every sanitizer cell, and explains the difference.
+
 | CMake option | Default | Meaning |
 |---|---|---|
 | `HNSW_NATIVE` | ON | compile with `-march=native`. OFF builds a portable binary; the AVX2 kernel still builds with per-file flags and is chosen at run time |
