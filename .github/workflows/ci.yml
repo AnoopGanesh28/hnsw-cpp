@@ -36,6 +36,19 @@ jobs:
         run: cmake --build build -j "$(nproc)"
       - name: Test
         run: ctest --test-dir build --output-on-failure -j "$(nproc)"
+      - name: Run the C++ example
+        run: build/example_quickstart
+
+  docs:
+    name: README matches its evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Quality block against docs/evidence
+        run: python3 scripts/quality_report.py --check
+      - name: Results block against bench/results
+        run: python3 bench/check_readme.py
 
   sanitize:
     name: ${{ matrix.mode }} (${{ matrix.compiler }})
